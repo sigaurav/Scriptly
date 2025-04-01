@@ -1,0 +1,143 @@
+/* script_form.css - Enhanced styles */
+
+/* Form Container */
+.script-form-container {
+  padding: 1rem;
+  border-radius: 12px;
+  background: inherit;
+  color: inherit;
+  margin-top: 1rem;
+  animation: fadeIn 0.4s ease;
+}
+
+/* Form Element Blocks */
+.script-form-container form {
+  background-color: rgba(255, 255, 255, 0.6); /* fallback if needed */
+  border-radius: 12px;
+  padding: 1.2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Input Styles */
+.script-form-container input,
+.script-form-container select,
+.script-form-container textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  margin-bottom: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  transition: border-color 0.3s;
+  background: white;
+}
+
+.script-form-container input:focus,
+.script-form-container select:focus,
+.script-form-container textarea:focus {
+  border-color: #1976d2;
+  outline: none;
+}
+
+/* Labels */
+.script-form-container label {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: inline-block;
+}
+
+/* Help Text */
+.script-form-container .help-block {
+  font-size: 12px;
+  color: #666;
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Buttons */
+.script-form-container button[type="submit"],
+.script-form-container .back-to-scripts-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: background-color 0.3s ease;
+}
+
+/* Theme-based button styles */
+.theme-1 .script-form-container button {
+  background-color: #1976d2;
+  color: white;
+}
+.theme-2 .script-form-container button {
+  background-color: #7b1fa2;
+  color: white;
+}
+.theme-3 .script-form-container button {
+  background-color: #00838f;
+  color: white;
+}
+.theme-4 .script-form-container button {
+  background-color: #388e3c;
+  color: white;
+}
+.theme-5 .script-form-container button {
+  background-color: #f57c00;
+  color: white;
+}
+
+/* Hover states */
+.script-form-container button:hover {
+  filter: brightness(1.05);
+}
+
+/* Section Headers */
+.script-form-container .section-header {
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: inherit;
+}
+a[href="#scriptly-multi-input"],
+a[href="#scriptly-multi-input-remove"] {
+  margin-left: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 18px;
+}
+
+.multi-input-wrapper {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.multi-add-btn {
+  display: inline-block;
+  margin-top: 0.5rem;
+  margin-left: 0.25rem;
+  font-size: 18px;
+  color: #1976d2;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.multi-add-btn:hover {
+  color: #0d47a1;
+}
+
+.scriptly-progress {
+  margin-top: 1rem;
+}
+
+
+
+/* Animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

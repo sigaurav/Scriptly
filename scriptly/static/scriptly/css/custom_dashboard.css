@@ -1,0 +1,293 @@
+/* custom_dashboard.css */
+
+body {
+  background: #f9f9f9 !important; /* or any clean light color */
+  background-image: none !important; /* remove diagonal lines */
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url('/static/scriptly/images/logo-watermark.png'); /* Update path if needed */
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.15;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Optional: if your content section has a max width, logo still shows centered */
+.container,
+.content-section {
+  position: relative;
+  z-index: 1;
+}
+
+#wrapper.toggled #sidebar-wrapper {
+    width: 250px;
+}
+
+#sidebar-wrapper {
+    width: 0;
+    transition: all 0.3s ease;
+    /* additional styles */
+}
+
+
+
+/* Remove any striped background or old logo from main content containers */
+.container,
+.content-section,
+.content,
+.row,
+#content,
+.panel,
+.page-header,
+.panel-default,
+.panel-body {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+
+.script-groups-header {
+  font-size: 2.5rem;
+  font-weight: 700;
+  text-align: center;
+  color: #1976d2;
+  background: linear-gradient(to right, #e3f2fd, #bbdefb);
+  padding: 1.5rem 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+
+
+/* Base card styles */
+.group-card {
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  background: #fff;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+  transition:
+    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.5s ease,
+    width 0.5s ease,
+    height 0.5s ease,
+    top 0.5s ease,
+    left 0.5s ease;
+}
+
+/* Hover effect */
+.group-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}
+
+/* Expanded card */
+.group-card.expanded {
+  position: fixed;
+  top: 10vh;
+  left: 5vw;
+  width: 90vw;
+  height: 80vh;
+  z-index: 1000;
+  overflow-y: auto;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
+  padding-bottom: 0rem;
+  transition:
+    width 0.5s ease,
+    height 0.5s ease,
+    top 0.5s ease,
+    left 0.5s ease,
+    box-shadow 0.4s ease,
+    transform 0.4s ease;
+}
+
+/* Card header */
+.group-card-header {
+  padding: 16px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 20px;
+  color: #fff;
+  position: relative;
+}
+
+/* Optional: description in expanded card */
+.group-description {
+  font-size: 14px;
+  margin-top: 6px;
+  color: #e0e0e0;
+}
+
+/* Hide description unless expanded */
+.d-none {
+  display: none;
+}
+.group-card.expanded .d-expanded-block {
+  display: block;
+}
+.group-card:not(.expanded) .d-expanded-block {
+  display: none;
+}
+.group-card.expanded .d-expanded-none {
+  display: none;
+}
+
+/* Card body */
+.group-card-body {
+  padding: 16px;
+  position: relative;
+  z-index: 2;
+  flex-grow: 1;
+  background-color: inherit;
+  min-height: 100px; /* Helps fill space but keeps height compact */
+}
+
+
+
+/* Watermark */
+.bg-letter {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 120px;
+  font-weight: bold;
+  color: rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+  z-index: 0;
+}
+.group-card.expanded .bg-letter {
+  font-size: 200px;
+  top: 30%;
+  right: 5%;
+}
+
+/* Script table */
+.script-table {
+  width: 100%;
+  margin-top: 12px;
+  font-size: 14px;
+  border-collapse: collapse;
+  background-color: inherit;
+}
+.script-table th,
+.script-table td {
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+  text-align: left;
+}
+.script-table th {
+  background-color: #f5f5f5;
+}
+.script-table tr:hover {
+  background-color: rgba(25, 118, 210, 0.08);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+/* Close button */
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  font-size: 24px;
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  z-index: 9999;
+}
+.close-btn:hover {
+  color: #222;
+}
+
+/* Script form styles */
+.script-form-container {
+  padding: 1rem 0;
+}
+.script-form-container form {
+  padding: 1rem;
+  background: #fefefe;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Loader */
+.loading {
+  text-align: center;
+  padding: 2rem;
+  font-style: italic;
+  color: #666;
+}
+
+/* Only show scripts if the card is expanded */
+.group-scripts {
+  display: none;
+   opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.group-card.expanded .group-scripts {
+  display: block;
+   opacity: 1;
+  transform: translateY(0);
+}
+
+.back-to-scripts-btn {
+  background-color: transparent;
+  color: #1976d2;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0.4rem 0;
+  cursor: pointer;
+  margin-bottom: 10px;
+  display: inline-block;
+}
+
+.back-to-scripts-btn:hover {
+  text-decoration: underline;
+  color: #0d47a1;
+}
+
+
+
+
+/* Theme backgrounds */
+.theme-1 .group-card-header { background-color: #1976d2; }
+.theme-1 .group-card-body { background-color: #e3f2fd; color: #0d47a1; }
+
+.theme-2 .group-card-header { background-color: #7b1fa2; }
+.theme-2 .group-card-body { background-color: #f3e5f5; color: #4a148c; }
+
+.theme-3 .group-card-header { background-color: #00838f; }
+.theme-3 .group-card-body { background-color: #e0f7fa; color: #006064; }
+
+.theme-4 .group-card-header { background-color: #388e3c; }
+.theme-4 .group-card-body { background-color: #e8f5e9; color: #1b5e20; }
+
+.theme-5 .group-card-header { background-color: #f57c00; }
+.theme-5 .group-card-body { background-color: #fff3e0; color: #e65100; }
+
+
+.group-card .script-table th {
+  background-color: inherit;
+  color: inherit;
+}
+

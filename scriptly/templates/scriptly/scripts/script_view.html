@@ -1,0 +1,79 @@
+{% load static %}
+{% load i18n %}
+{% load scriptly_tags %}
+
+<form id="Scriptly-job-form" class="scriptly-job-form" method="POST" action="{{ form.action }}" enctype="multipart/form-data">
+  {% csrf_token %}
+  {{ form.scriptly_form }}
+
+  {% for parser_info, parser_groups in form.parsers.items %}
+    {% for group in parser_groups %}
+      <div class="accordion-section">
+        <div class="accordion-header">
+          {{ group.group_name|title }}
+        </div>
+        <div class="accordion-body">
+          {% for field in group.form %}
+            {% if field.data_scriptly_multiple %}
+              <div class="form-group">
+                {% if not field.is_hidden %}
+                  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {% endif %}
+                <div data-Scriptly-multiple>
+                  {{ field }}
+                </div>
+                <a href="#Scriptly-multi-input" class="multi-add-btn">
+                  <span class="glyphicon glyphicon-plus"></span>
+                </a>
+                {% if not field.is_hidden %}
+                  <p class="help-block">{{ field.help_text }}</p>
+                {% endif %}
+              </div>
+            {% else %}
+              <div class="form-group">
+                {{ field.errors }}
+                {% if not field.is_hidden %}
+                  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {% endif %}
+                {{ field }}
+                {% if not field.is_hidden %}
+                  <p class="help-block">{{ field.help_text }}</p>
+                {% endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  {% endfor %}
+
+  <div class="metadata">
+    <div class="form-group">
+      <label for="job-name">{% trans "Job Name" %}</label>
+      <input class="form-control" id="scriptly_job_name" name="job_name" placeholder="{% trans 'Job Name' %}" value="{{ script.script_name }} {% now "Ymd-G:i" %}" />
+    </div>
+    <div class="form-group">
+      <label for="job-description">{% trans "Job Description" %}</label>
+      <textarea class="form-control" id="scriptly_job_description" name="job_description" placeholder="{% trans 'Enter job description here...' %}"></textarea>
+    </div>
+  </div>
+
+  <input name="scriptly_clone_task_id" id="scriptly_clone_task_id" type="hidden">
+  <input type="hidden" name="scriptly_type" value="{{ script.pk }}">
+  <input type="hidden" name="scriptly_parser" value="0">
+
+  <div class="form-actions" style="margin-top: 1rem;">
+    <button id="Scriptly-form-submit" type="submit" class="btn btn-primary">Submit</button>
+  </div>
+</form>
+
+<script src="{% static 'Scriptly/js/script_form.js' %}"></script>
+
+<!-- jQuery must load first -->
+<script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+
+<!-- Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+
+<!-- Your custom form handler -->
+<script src="{% static 'scriptly/js/script_form.js' %}"></script>

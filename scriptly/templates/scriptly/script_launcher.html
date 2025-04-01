@@ -1,0 +1,14 @@
+{% extends "scriptly/base.html" %}
+{% load static %}
+{% block title %}Run Script{% endblock %}
+
+{% block center_content %}
+<div class="container">
+    <h2>Run: {{ script.script_name }}</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Run</button>
+    </form>
+</div>
+{% endblock %}

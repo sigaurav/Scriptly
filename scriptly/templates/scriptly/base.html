@@ -1,0 +1,177 @@
+{% load i18n %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'scriptly/css/custom_dashboard.css' %}">
+{% load scriptly_tags %}
+<!DOCTYPE html>
+<html>
+    <head lang="en">
+        <meta charset="UTF-8">
+        <title>{% block title %}{% get_scriptly_setting "SCRIPTLY_SITE_NAME" %}{% endblock title %}</title>
+        <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css"/>
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/jquery.dataTables.min.css">
+        <link rel="stylesheet" href="//cdn.datatables.net/responsive/1.0.5/css/dataTables.responsive.css"/>
+        <link rel="stylesheet" href="{% static "scriptly/css/base.css" %}"/>
+        <link rel="stylesheet" href="{% static "scriptly/css/simple-sidebar.css" %}"/>
+        <link href='//fonts.googleapis.com/css?family=Pacifico' rel='stylesheet' type='text/css'>
+
+        {% block extra_css %}
+        {% endblock extra_css %}
+
+
+        <style>
+            {% block extra_style %}
+            {% endblock extra_style %}
+        </style>
+    </head>
+    <body class="{% if user.is_authenticated %}user-is-authenticated{% else %}user-is-anonymous{% endif %}">
+        <nav class="navbar navbar-inverse navbar-fixed-top">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button id="menu-toggle" class="navbar-toggle">
+                        <span class="sr-only"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <ol class="breadcrumb navbar-breadcrumb">
+                        <li><a href="{% url 'scriptly_home' %}" class="navbar-brand Scriptly">
+                        {% get_scriptly_setting "SCRIPTLY_SITE_NAME" %}</a></li>
+                        {% block breadcrumbs %}{% endblock %}
+                    </ol>
+
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse-1">
+                        <span class="sr-only">{% trans "Toggle navigation" %}</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbar-collapse-1">
+                    <ul class="nav navbar-nav navbar-right">
+                        <li>
+                            <a href="{% url 'scriptly:user_results' %}">{% trans "Results" %}</a>
+                        </li>
+
+                        {% if request.user.is_authenticated %}
+                            <li><a href="{% url 'scriptly:profile_home' %}"><span class="glyphicon glyphicon-user"> </span> {{ request.user.username }}</a></li>
+                            <li><a href="{% url 'admin:logout' %}?next={{ request.path }}">{% trans "Logout" %}</a></li>
+                        {% else %}
+                            <li>{% include "scriptly/registration/login_header.html" %}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div id="wrapper">
+            <div id="sidebar-wrapper" class="sidebar-wrapper">
+                <ul class="sidebar-nav">
+                    <li>
+                        <form>
+                            <div class="form-group">
+                                <input type="text" class="form-control" id="sidebarsearchform"  placeholder="{% trans 'Search for scripts...' %}" value="{{ request.GET.q }}">
+                            </div>
+                        </form>
+                    </li>
+                    <div id="sidebarsearchresults">
+                    </div>
+                </ul>
+            </div>
+
+            <div id="page-content-wrapper" class="{% block page_content_class %}{% endblock page_content_class %}">
+                {% block outer_content %}{% endblock %}
+                {% block center %}
+                    <div class="center-div {% block center_content_class %}col-md-10 col-xs-6{% endblock center_content_class %}">
+                        {% block center_content %}
+                        {% endblock center_content %}
+                    </div>
+                {% endblock center %}
+            </div>
+        </div>
+
+        {% block js %}
+            <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+            <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+            <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+            <script src="{% static 'scriptly/js/group_card_toggle.js' %}?v=2"></script>
+            <script src="{% static 'scriptly/js/script_form.js' %}"></script>
+        {% endblock js %}
+
+        <div id="inline-js">
+{% block inline_js %}
+        <script>
+            $(document).ready(function () {
+    $("#menu-toggle").click(function(e) {
+        e.preventDefault();
+        $("#wrapper").toggleClass("toggled");
+    });
+
+    $("#sidebarsearchform").on("keyup", function () {
+        var query = $(this).val();
+        if (query.length < 2) {
+            $("#sidebarsearchresults").empty();
+            return;
+        }
+
+        $.ajax({
+            url: "{% url 'scriptly:scriptly_search_script_json' %}",
+            method: "GET",
+            data: { q: query },
+            dataType: "json",
+            success: function (data) {
+                const $results = $("#sidebarsearchresults");
+                $results.empty();
+
+                if (data.results.length === 0) {
+                    $results.append("<li><em>No results</em></li>");
+                    return;
+                }
+
+                data.results.forEach(result => {
+                    $results.append(`<li class="sidebarsearchresult"><a href="${result.url}">${result.name}</a></li>`);
+                });
+
+                $(".sidebarsearchresult a").on("click", function () {
+                    $("#sidebarsearchresults").empty();
+                });
+            }
+        });
+    });
+});
+
+        </script>
+<script>
+$(document).on('submit', '.script-form', function(e) {
+    e.preventDefault();
+
+    const $form = $(this);
+    const url = $form.attr('action');
+    const formData = new FormData(this);
+
+    $.ajax({
+        type: "POST",
+        url: url,
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function (response) {
+            if (response.valid && response.redirect) {
+                window.location.href = response.redirect;
+            } else {
+                alert("Validation failed");
+                console.log(response.errors);
+            }
+        },
+        error: function () {
+            alert("Submission failed. Please try again.");
+        }
+    });
+});
+</script>
+
+        {% endblock inline_js %}
+        </div>
+
+    </body>
+</html>

@@ -1,0 +1,46 @@
+.expandable-card {
+    border: 1px solid #ddd;
+    border-radius: 15px;
+    background-color: #f5faff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    transition: all 0.4s ease;
+    overflow: hidden;
+    cursor: pointer;
+    margin-bottom: 30px;
+}
+
+.expandable-header {
+    padding: 20px;
+    background-color: #007bbd;
+    color: white;
+    font-size: 24px;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+}
+
+.expandable-body {
+    max-height: 0;
+    padding: 0 20px;
+    transition: max-height 0.4s ease, padding 0.4s ease;
+    background-color: white;
+}
+
+.expanded .expandable-body {
+    max-height: 1000px;
+    padding: 20px;
+}
+
+.script-item {
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.script-item h4 {
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.script-date {
+    color: #777;
+    font-size: 0.9em;
+}

@@ -1,0 +1,49 @@
+{% extends "Scriptly/base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'Scriptly/css/group_detail.css' %}">
+{% endblock %}
+
+{% block center_content %}
+<div class="container mt-4">
+  <div class="expandable-card" onclick="toggleCard(this)">
+    <div class="expandable-header">
+      <h2>{{ group.group_name }}</h2>
+    </div>
+    <div class="expandable-body">
+      <ul class="script-list">
+        {% for script in scripts %}
+            <li class="script-item" id="script-{{ script.id }}">
+              <h4>{{ script.script_name }}</h4>
+              <p>{{ script.script_description }}</p>
+              <small>Last modified: {{ script.modified_date|date:"Y-m-d H:i" }}</small>
+              <p>Created by: {{ script.created_by }}</p>
+
+          <form method="POST" action="{% url 'scriptly:scriptly_submit_script' %}" class="scriptly-job-form" data-script-id="{{ script.id }}">
+              <div id="form-status-{{ script.id }}"></div>
+                {% csrf_token %}
+                {% for parser, forms in script.parsers.items %}
+                  {% for group in forms %}
+                    <fieldset>
+                      <legend>{{ group.group_name }}</legend>
+                      {{ group.form }}
+                    </fieldset>
+                  {% endfor %}
+                {% endfor %}
+                <input type="hidden" name="scriptly_type" value="{{ script.scriptly_form.scriptly_type.value }}">
+                {% if script.scriptly_form.scriptly_parser %}
+                  <input type="hidden" name="scriptly_parser" value="{{ script.scriptly_form.scriptly_parser.value }}">
+                {% endif %}
+                   <button id="Scriptly-form-submit" type="submit" class="btn btn-primary">
+              </form>
+            </li>
+{% endfor %}
+
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+

@@ -1,0 +1,7 @@
+include LICENSE
+include README.md
+recursive-include scriptly/templates *
+recursive-include scriptly/static *
+recursive-include scriptly/conf *
+recursive-include scriptly/locale *
+recursive-exclude * *.pyc
