@@ -1,0 +1,2 @@
+[console_scripts]
+wooify = scriptly.backend.command_line:bootstrap
