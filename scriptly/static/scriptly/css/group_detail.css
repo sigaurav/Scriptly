@@ -1,0 +1,107 @@
+.expandable-card {
+    border: 1px solid #ddd;
+    border-radius: 15px;
+    background-color: #f5faff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    transition: all 0.4s ease;
+    overflow: hidden;
+    margin-bottom: 30px;
+    max-width: 850px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.expandable-header {
+    padding: 20px;
+    background-color: #007bbd;
+    color: white;
+    font-size: 28px;
+    text-align: center;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+}
+
+.expandable-body {
+    max-height: 1000px;
+    padding: 20px;
+    background-color: white;
+}
+
+.script-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.script-item {
+    background: #f9f9ff;
+    border: 1px solid #d6e9f9;
+    border-radius: 10px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+}
+
+.script-header {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.script-header h3 {
+    margin-top: 0;
+    font-size: 1.8em;
+    font-weight: 700;
+    color: #004080;
+}
+
+.script-meta {
+    font-size: 0.9em;
+    color: #888;
+    margin-bottom: 12px;
+}
+
+.script-description {
+    font-size: 1.05em;
+    color: #333;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.script-item form fieldset {
+    border: none;
+    margin-top: 15px;
+    padding: 0;
+}
+
+.script-item form legend {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #5b2c6f;
+    margin-bottom: 10px;
+}
+
+.script-item input[type="text"],
+.script-item input[type="file"],
+.script-item textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    margin-bottom: 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #eef5ff;
+}
+
+.script-item button[type="submit"] {
+    background-color: #6200ea;
+    border: none;
+    color: white;
+    padding: 10px 25px;
+    font-weight: 500;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.script-item button[type="submit"]:hover {
+    background-color: #3700b3;
+}

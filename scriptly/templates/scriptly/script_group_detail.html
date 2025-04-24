@@ -1,0 +1,86 @@
+{% extends "Scriptly/base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'Scriptly/css/group_detail.css' %}">
+{% endblock %}
+
+{% block center_content %}
+<div class="container mt-4">
+  <div class="expandable-card expanded">
+    <div class="expandable-header">
+      <h2>{{ group.group_name }}</h2>
+    </div>
+    <div class="expandable-body">
+      <ul class="script-list">
+        {% for script in scripts %}
+          <li class="script-item" id="script-{{ script.id }}">
+            <div class="script-header">
+              <h3>{{ group.group_name }} – {{ script.script_name }}</h3>
+              <p class="script-meta">
+                Last modified: {{ script.modified_date|date:"Y-m-d H:i" }}<br>
+                Created by: {{ script.created_by }} <br>
+                {{ script.script_description }}
+              </p>
+            </div>
+
+
+            <form method="POST"
+                  action="{% url 'scriptly:scriptly_submit_script' %}"
+                  class="scriptly-job-form"
+                  data-script-id="{{ script.id }}">
+              {% csrf_token %}
+              {% for parser, forms in script.parsers.items %}
+                {% for group in forms %}
+                  <fieldset>
+                    <legend>{{ group.group_name }}</legend>
+                    {{ group.form }}
+                  </fieldset>
+                {% endfor %}
+              {% endfor %}
+
+              <input type="hidden" name="scriptly_type" value="{{ script.scriptly_form.scriptly_type.value }}">
+              {% if script.scriptly_form.scriptly_parser %}
+                <input type="hidden" name="scriptly_parser" value="{{ script.scriptly_form.scriptly_parser.value }}">
+              {% endif %}
+
+              <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block inline_js %}
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const hash = window.location.hash;
+      if (hash && hash.startsWith("#script-")) {
+        const scriptElement = document.querySelector(hash);
+        if (scriptElement) {
+          scriptElement.scrollIntoView({ behavior: "smooth", block: "center" });
+          scriptElement.classList.add("highlighted-script");
+
+          const card = scriptElement.closest(".expandable-card");
+          if (card && !card.classList.contains("expanded")) {
+            card.classList.add("expanded");
+            const body = card.querySelector(".expandable-body");
+            if (body) {
+              body.style.display = "block";
+            }
+          }
+        }
+      }
+    });
+  </script>
+  <style>
+    .highlighted-script {
+      border: 2px solid #337ab7;
+      background-color: #f5faff;
+      padding: 10px;
+    }
+  </style>
+{% endblock %}

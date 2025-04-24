@@ -1,0 +1,24 @@
+celery<6,>=4
+clinto>=0.5.1
+Django<5,>=3
+django-autoslug
+django-storages
+
+[:platform_system == "Windows"]
+eventlet>=0.22.1
+
+[:platform_system == "Windows" and python_version > "3.4"]
+pypiwin32
+
+[:python_version <= "3.7"]
+importlib-metadata<5.0
+
+[dev]
+boto3
+coverage
+factory-boy<3.0.0
+mock
+pytest
+pytest-cov
+sphinx
+watchdog[watchmedo]

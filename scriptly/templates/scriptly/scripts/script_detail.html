@@ -1,0 +1,11 @@
+{% extends "Scriptly/base.html" %}
+
+{% block center_content %}
+<div class="container content-section">
+    <h1>{{ script.script_name }}</h1>
+    <p>{{ script.description|default:"No description available." }}</p>
+    <p>Group: {{ script.script_group }}</p>
+    <p>Uploaded by: {{ script.created_by }}</p>
+    <!-- You can add script execution UI here -->
+</div>
+{% endblock %}

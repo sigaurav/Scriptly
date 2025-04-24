@@ -1,0 +1,38 @@
+{% extends "scriptly/base.html" %}
+
+{% block center_content_class %}col-md-12 col-xs-12{% endblock center_content_class %}
+
+{% block center_content %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h3 class="panel-title">{{ job.job_name }}</h3>
+    </div>
+    <div class="panel-body">
+        <p><strong>Status:</strong>
+            {% if job.status == 'completed' %}
+                <span class="label label-success"><span class="glyphicon glyphicon-ok"></span> Success</span>
+            {% elif job.status == 'running' %}
+                <span class="label label-info"><span class="glyphicon glyphicon-refresh spinning"></span> Running - {{ job.progress }}%</span>
+            {% elif job.status == 'submitted' %}
+                <span class="label label-default"><span class="glyphicon glyphicon-hourglass"></span> Waiting</span>
+            {% elif job.status == 'pending' %}
+                <span class="label label-default"><span class="glyphicon glyphicon-time"></span> Queued</span>
+            {% elif job.status == 'revoked' %}
+                <span class="label label-warning"><span class="glyphicon glyphicon-stop"></span> Halted</span>
+            {% elif job.status == 'FAILURE' %}
+                <span class="label label-danger"><span class="glyphicon glyphicon-exclamation-sign"></span> Failed</span>
+            {% else %}
+                <span class="label label-danger"><span class="glyphicon glyphicon-question-sign"></span> {{ job.status|title }}</span>
+            {% endif %}
+        </p>
+
+        <p><strong>Submitted:</strong> {{ job.created_date }}</p>
+
+        <h4>Output Log (stdout)</h4>
+        <pre class="bg-info p-3 border rounded" style="max-height: 300px; overflow: auto;">{{ job.stdout }}</pre>
+
+        <h4>Error Log (stderr)</h4>
+        <pre class="bg-danger p-3 border rounded text-white" style="max-height: 300px; overflow: auto;">{{ job.stderr }}</pre>
+    </div>
+</div>
+{% endblock %}

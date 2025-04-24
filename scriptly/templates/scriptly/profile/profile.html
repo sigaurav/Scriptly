@@ -1,0 +1,47 @@
+{% extends "scriptly/base.html" %}
+{% load i18n %}
+{% load static %}
+{% load scriptly_tags %}
+
+{% block center_content_class %}col-md-12 col-xs-12{% endblock center_content_class %}
+
+{% block center_content %}
+  <div class="page-header">
+    <img src="{% gravatar user_obj.email 64 %}" class="gravatar gravatar-64">
+    <div class="profile-gravatar-adjust">
+      <h1>
+        {% if user_obj.first_name or user_obj.last_name %}
+          {{ user_obj.get_full_name }}
+        {% else %}
+          {{ user_obj.username }}
+        {% endif %}
+        <small>{{ user_obj.username }}</small>
+      </h1>
+
+      <div class="profile-metadata">
+        {% blocktrans with join_date=user_obj.date_joined|timesince %}
+          Joined {{ join_date }} ago
+        {% endblocktrans %}
+        {% if user_obj.is_superuser %}
+          • <span class="glyphicon glyphicon-fire"></span> {% trans "Superuser" %}
+        {% endif %}
+        {% if user_obj.is_staff %}
+          • <span class="glyphicon glyphicon-education"></span> {% trans "Staff" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if is_logged_in_user %}
+    <div class="panel panel-default">
+      <div class="panel-body">
+        <p><strong>Welcome to your Scriptly profile!</strong></p>
+        <p>You can view your submitted scripts and job history under the <a href="{% url 'scriptly:user_results' %}">Results</a> section.</p>
+      </div>
+    </div>
+  {% else %}
+    <div class="alert alert-info">
+      <p>{% trans "This user has not shared any public profile details." %}</p>
+    </div>
+  {% endif %}
+{% endblock %}

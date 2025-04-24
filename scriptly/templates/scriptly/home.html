@@ -1,0 +1,94 @@
+{% extends "scriptly/base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'scriptly/css/custom_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'scriptly/css/script_form.css' %}">
+
+{% endblock %}
+
+{% block center_content %}
+<div class="container content-section">
+  <h1 class="script-groups-header">Available Groups</h1>
+  <div class="row">
+    {% for group in groups %}
+      <div class="col-md-4 col-sm-6 mb-4">
+        <div class="group-card theme-{% cycle '1' '2' '3' '4' '5' %}">
+          <div class="group-card-header">
+            <h3>{{ group.group_name }}</h3>
+            {% if group.description %}
+              <p class="group-description d-none d-expanded-block">{{ group.description }}</p>
+            {% endif %}
+          </div>
+
+          <div class="group-card-body">
+            <div class="bg-letter">{{ group.group_name|first|upper }}</div>
+            {% if group.description %}
+              <p class="description d-expanded-none">{{ group.description }}</p>
+            {% endif %}
+
+            <div class="group-scripts">
+              {% if group.scripts %}
+                <table class="script-table">
+                  <thead>
+                    <tr>
+                      <th>Script Name</th>
+                      <th>Description</th>
+                      <th>Last Updated</th>
+                      <th>Created By</th>
+
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for script in group.scripts %}
+                      <tr class="script-link" data-url="{% url 'scriptly:scriptly_script' slug=script.slug %}">
+                        <td>{{ script.script_name }}</td>
+                        <td>{{ script.script_description }}</td>
+                        <td>
+                          {% if script.modified_date %}
+                            {{ script.modified_date|date:"M d, Y H:i" }}
+                          {% else %}
+                            Unknown
+                          {% endif %}
+                        </td>
+                       <td>
+                         {{ script.created_by }}
+                       </td>
+
+
+
+
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+
+                </table>
+              {% else %}
+                <p class="text-muted">No scripts in this group.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'scriptly/js/group_card_toggle.js' %}"></script>
+  <script src="{% static 'scriptly/js/script_form.js' %}"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const hash = window.location.hash;
+    if (hash && hash.startsWith("#script-")) {
+      const scriptCard = document.querySelector(hash);
+      if (scriptCard) {
+        scriptCard.classList.add("expanded");
+        scriptCard.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  });
+</script>
+
+{% endblock %}
