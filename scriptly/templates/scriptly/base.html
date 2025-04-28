@@ -136,53 +136,58 @@ $(document).ready(function () {
                 const $results = $("#sidebarsearchresults");
                 $results.empty();
 
-                if (data.scripts.length === 0) {
+                if (data.results.length === 0) {
                     $results.append("<li><em>No results found</em></li>");
                     return;
                 }
 
-                data.scripts.forEach(script => {
+                data.results.forEach(script => {
                     $results.append(
-                        `<li class="sidebarsearchresult"><a href="${script.url}">${script.name}</a></li>`
+                        `<li class="sidebarsearchresult"><a href="/scripts/group/${script.group_id}/?script_id=${script.id}">${script.name}</a></li>`
                     );
                 });
 
                 $(".sidebarsearchresult a").on("click", function () {
                     $("#sidebarsearchresults").empty();
                 });
+            },
+            error: function () {
+                console.error("Search failed");
             }
         });
     });
+
+
 });
 </script>
-<script>
-$(document).on('submit', '.script-form', function(e) {
-    e.preventDefault();
+<!--<script>-->
+<!--$(document).on('submit', '.script-form', function(e) {-->
+<!--    e.preventDefault();-->
 
-    const $form = $(this);
-    const url = $form.attr('action');
-    const formData = new FormData(this);
+<!--    const $form = $(this);-->
+<!--    const url = $form.attr('action');-->
+<!--    const formData = new FormData(this);-->
 
-    $.ajax({
-        type: "POST",
-        url: url,
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function (response) {
-            if (response.valid && response.redirect) {
-                window.location.href = response.redirect;
-            } else {
-                alert("Validation failed");
-                console.log(response.errors);
-            }
-        },
-        error: function () {
-            alert("Submission failed. Please try again.");
-        }
-    });
-});
-</script>
+<!--    $.ajax({-->
+<!--        type: "POST",-->
+<!--        url: url,-->
+<!--        data: formData,-->
+<!--        processData: false,-->
+<!--        contentType: false,-->
+<!--        success: function (response) {-->
+<!--            if (response.valid && response.redirect) {-->
+<!--                window.location.href = response.redirect;-->
+<!--            } else {-->
+<!--                alert("Validation failed");-->
+<!--                console.log(response.errors);-->
+<!--            }-->
+<!--        },-->
+<!--        error: function () {-->
+<!--            alert("Submission failed. Please try again.");-->
+<!--        }-->
+<!--    });-->
+<!--});-->
+<!--</script>-->
 
         {% endblock inline_js %}
         </div>
@@ -205,6 +210,8 @@ $(document).on('submit', '.script-form', function(e) {
                 </div>
               </div>
             </div>
-
+{% block extra_js %}
+  <script src="{% static 'scriptly/js/file_browser.js' %}"></script>
+{% endblock %}
     </body>
 </html>

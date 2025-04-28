@@ -131,7 +131,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Redirect unauthenticated users to admin login page
 LOGIN_URL = '/scripts/accounts/login/'
-LOGIN_REDIRECT_URL = '/scripts/'
+LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/scripts/accounts/login/'
 
 

@@ -1,8 +1,8 @@
-{% extends "Scriptly/base.html" %}
+{% extends "scriptly/base.html" %}
 {% load static %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'Scriptly/css/group_detail.css' %}">
+  <link rel="stylesheet" href="{% static 'scriptly/css/group_detail.css' %}">
 {% endblock %}
 
 {% block center_content %}
@@ -12,75 +12,72 @@
       <h2>{{ group.group_name }}</h2>
     </div>
     <div class="expandable-body">
-      <ul class="script-list">
-        {% for script in scripts %}
-          <li class="script-item" id="script-{{ script.id }}">
-            <div class="script-header">
-              <h3>{{ group.group_name }} – {{ script.script_name }}</h3>
-              <p class="script-meta">
-                Last modified: {{ script.modified_date|date:"Y-m-d H:i" }}<br>
-                Created by: {{ script.created_by }} <br>
-                {{ script.script_description }}
-              </p>
-            </div>
+      {% if scripts %}
+        <ul class="script-list">
+          {% for script in scripts %}
+            <li class="script-item" id="script-{{ script.id }}">
+              <div class="script-header text-center">
+                <h3>{{ group.group_name }} – {{ script.script_name }}</h3>
+                <p class="script-meta">
+                  Last modified: {{ script.modified_date|date:"Y-m-d H:i" }}<br>
+                  Created by: {{ script.created_by }}<br>
+                  {{ script.script_description }}
+                </p>
+              </div>
 
-
-            <form method="POST"
-                  action="{% url 'scriptly:scriptly_submit_script' %}"
-                  class="scriptly-job-form"
-                  data-script-id="{{ script.id }}">
-              {% csrf_token %}
-              {% for parser, forms in script.parsers.items %}
-                {% for group in forms %}
-                  <fieldset>
-                    <legend>{{ group.group_name }}</legend>
-                    {{ group.form }}
-                  </fieldset>
+              <form method="POST"
+                    action="{% url 'scriptly:scriptly_submit_script' %}"
+                    class="scriptly-job-form"
+                    data-script-id="{{ script.id }}"
+                    enctype="multipart/form-data">
+                {% csrf_token %}
+                {% for parser, forms in script.parsers.items %}
+                  {% for group in forms %}
+                    <fieldset>
+                      <legend>{{ group.group_name }}</legend>
+                      {% for field in group.form %}
+                        {% if "output_file" not in field.name|lower %}
+                          <div class="form-group">
+                            {{ field.label_tag }}
+                            <div style="display: flex; align-items: center;">
+                              {{ field }}
+                              {% if "input_file" in field.name or "input_folder" in field.name %}
+                                <button type="button"
+                                        class="btn btn-secondary browse-btn"
+                                        data-type="{% if 'input_file' in field.name %}file{% else %}directory{% endif %}"
+                                        style="margin-left: 10px;">
+                                  Browse
+                                </button>
+                              {% endif %}
+                            </div>
+                          </div>
+                        {% endif %}
+                      {% endfor %}
+                    </fieldset>
+                  {% endfor %}
                 {% endfor %}
-              {% endfor %}
 
-              <input type="hidden" name="scriptly_type" value="{{ script.scriptly_form.scriptly_type.value }}">
-              {% if script.scriptly_form.scriptly_parser %}
-                <input type="hidden" name="scriptly_parser" value="{{ script.scriptly_form.scriptly_parser.value }}">
-              {% endif %}
-
-              <button type="submit" class="btn btn-primary">Submit</button>
-            </form>
-          </li>
-        {% endfor %}
-      </ul>
+                <input type="hidden" name="scriptly_type" value="{{ script.scriptly_form.scriptly_type.value }}">
+                {% if script.scriptly_form.scriptly_parser %}
+                  <input type="hidden" name="scriptly_parser" value="{{ script.scriptly_form.scriptly_parser.value }}">
+                {% endif %}
+                <button type="submit" class="btn btn-primary">Submit</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted">No script selected or script not found.</p>
+      {% endif %}
     </div>
   </div>
 </div>
 {% endblock %}
 
 {% block inline_js %}
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const hash = window.location.hash;
-      if (hash && hash.startsWith("#script-")) {
-        const scriptElement = document.querySelector(hash);
-        if (scriptElement) {
-          scriptElement.scrollIntoView({ behavior: "smooth", block: "center" });
-          scriptElement.classList.add("highlighted-script");
+  <script src="{% static 'scriptly/js/script_form.js' %}"></script>
+{% endblock %}
 
-          const card = scriptElement.closest(".expandable-card");
-          if (card && !card.classList.contains("expanded")) {
-            card.classList.add("expanded");
-            const body = card.querySelector(".expandable-body");
-            if (body) {
-              body.style.display = "block";
-            }
-          }
-        }
-      }
-    });
-  </script>
-  <style>
-    .highlighted-script {
-      border: 2px solid #337ab7;
-      background-color: #f5faff;
-      padding: 10px;
-    }
-  </style>
+{% block extra_js %}
+  <script src="{% static 'scriptly/js/file_browser.js' %}"></script>
 {% endblock %}

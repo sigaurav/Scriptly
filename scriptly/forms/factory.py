@@ -94,26 +94,22 @@ def multi_value_clean(func):
 
     return clean
 
-
 class ScriptlyFormFactory(object):
     scriptly_forms = {}
 
     @staticmethod
     def get_field(param, initial=None):
-        """
-        Any extra field attributes for the widget for customization of Scriptly at the field level
-         can be added to the widget dictionary, widget_data_dict, or to the appender_data_dict, which
-         is the little plus button. This is useful since there is only a single copy of the plus,
-         whereas we can have multiple widgets. Thus, javascript attributes we want to add per parameter
-         can be added to appender_data_dict, and attributes we want to add to the widget input itself
-         can be added to the widget_data_dict.
+        from django import forms
+        from ..backend import utils
+        import json
+        import os
+        from django.utils.module_loading import import_string
 
-        :return: a field class
-        """
         form_field = param.form_field
         widget_data_dict = {}
         appender_data_dict = {}
         widget_init = {}
+
         SCRIPTLY_CHOICE_LIMIT = "data-scriptly-choice-limit"
         choices = json.loads(param.choices)
         field_kwargs = {
@@ -121,10 +117,17 @@ class ScriptlyFormFactory(object):
             "required": param.required,
             "help_text": param.param_help,
         }
+
         multiple_choices = param.multiple_choice
         choice_limit = param.max_choices
+
         if initial is None and param.default is not None:
             initial = param.default
+
+        # Add input_type to widget attributes for browse button logic
+        if param.input_type:
+            widget_data_dict["data-input-type"] = param.input_type
+
         if choices:
             form_field = "MultipleChoiceField" if multiple_choices else "ChoiceField"
             base_choices = (
@@ -144,39 +147,31 @@ class ScriptlyFormFactory(object):
         if form_field == "FileField":
             if param.is_output:
                 form_field = "CharField"
-                if initial:
-                    if not isinstance(initial, (list, tuple)):
-                        initial = [initial]
-                    initial = [os.path.split(i.name)[1] for i in initial]
-            elif initial is not None and list(
-                filter(None, initial)
-            ):  # for python3, we need to evaluate the filter object
+            elif initial is not None and list(filter(None, initial)):
                 if isinstance(initial, (list, tuple)):
-                    _initial = []
-                    for value in initial:
-                        if not hasattr(value, "path"):
-                            with utils.get_storage_object(value, close=False) as so:
-                                _initial.append(so)
-                        else:
-                            _initial.append(value)
-                    initial = _initial
+                    initial = [
+                        value if hasattr(value, "path") else utils.get_storage_object(value, close=False)
+                        for value in initial
+                    ]
                 else:
-                    if not hasattr(initial, "path"):
-                        with utils.get_storage_object(initial, close=False) as so:
-                            initial = so
-                    else:
-                        initial = initial
+                    initial = (
+                        initial
+                        if hasattr(initial, "path")
+                        else utils.get_storage_object(initial, close=False)
+                    )
                 if not field_kwargs.get("widget"):
                     field_kwargs["widget"] = forms.ClearableFileInput
+
         if not multiple_choices and isinstance(initial, list):
             initial = initial[0]
         field_kwargs["initial"] = initial
-        field = getattr(forms, form_field)
 
+        field = getattr(forms, form_field)
         if "widget" in field_kwargs:
             field_kwargs["widget"] = field_kwargs["widget"](**widget_init)
 
         field = field(**field_kwargs)
+        field.widget.attrs.update(widget_data_dict)
 
         if form_field != "MultipleChoiceField" and multiple_choices:
             field.widget.render = mutli_render(
@@ -185,13 +180,7 @@ class ScriptlyFormFactory(object):
             field.widget.value_from_datadict = multi_value_from_datadict(
                 field.widget.value_from_datadict
             )
-            field.clean = multi_value_clean(field.clean)
-            if choice_limit > 0:
-                appender_data_dict[SCRIPTLY_CHOICE_LIMIT] = choice_limit
-        elif multiple_choices and choice_limit > 0:
-            widget_data_dict[SCRIPTLY_CHOICE_LIMIT] = choice_limit
 
-        field.widget.attrs.update(widget_data_dict)
         return field
 
     def get_group_forms(self, script_version=None, initial_dict=None, render_fn=None):

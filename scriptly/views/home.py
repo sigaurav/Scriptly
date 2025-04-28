@@ -9,56 +9,23 @@ from django.urls import reverse
 @csrf_exempt
 @login_required
 def script_group_detail(request, group_id):
-    if request.method == "POST":
-        post = request.POST.copy()
-        user = request.user if request.user.is_authenticated else None
-
-        form = utils.get_master_form(
-            pk=int(post.get("scriptly_type")),
-            parser=int(post.get("scriptly_parser", 0))
-        )
-
-        utils.validate_form(form=form, data=post, files=request.FILES)
-
-        if not form.errors:
-            version_pk = form.cleaned_data.get("scriptly_type")
-            parser_pk = form.cleaned_data.get("scriptly_parser")
-
-            try:
-                script_version = ScriptVersion.objects.get(pk=version_pk)
-            except ScriptVersion.DoesNotExist:
-                return JsonResponse({"valid": False, "errors": {"__all__": ["Script version not found."]}})
-
-            valid = utils.valid_user(script_version.script, request.user).get("valid")
-            group_valid = utils.valid_user(script_version.script.script_group, request.user).get("valid")
-
-            if valid and group_valid:
-                job = utils.create_scriptly_job(
-                    script_parser_pk=parser_pk,
-                    script_version_pk=version_pk,
-                    user=user,
-                    data=form.cleaned_data,
-                )
-                job.execute_sync()
-
-                return JsonResponse({
-                    "valid": True,
-                    "job_id": job.id,
-                    "redirect": reverse("scriptly:scriptly_job_detail", kwargs={"job_id": job.id}),
-                    "message": "Job completed successfully",
-                })
-
-        return JsonResponse({"valid": False, "errors": form.errors})
-
-    # GET handler stays unchanged
     group = get_object_or_404(ScriptGroup, pk=group_id)
     scripts = Script.objects.filter(script_group=group, is_active=True)
-    script_data = []
 
+    # Get selected script_id from GET param (hash is NOT used here)
+    selected_script_id = request.GET.get("script_id")
+
+    if selected_script_id:
+        # Safely filter and avoid breaking if the ID is invalid
+        scripts = scripts.filter(id=selected_script_id)
+
+    script_data = []
     for script in scripts:
         try:
             default_version = ScriptVersion.objects.get(script=script, default_version=True)
             form_groups = utils.get_form_groups(script_version=default_version)
+            print("🟢 Script:", script.script_name)
+            print("🔎 Form groups returned:", form_groups)
             script_data.append({
                 "id": script.id,
                 "slug": script.slug,
@@ -76,6 +43,7 @@ def script_group_detail(request, group_id):
     return render(request, "scriptly/script_group_detail.html", {
         "group": group,
         "scripts": script_data,
+        "selected_script_id": selected_script_id,  # Optional: can use this in template if needed
     })
 
 
@@ -91,6 +59,7 @@ def home(request):
             except ScriptVersion.DoesNotExist:
                 version = None
             enriched_scripts.append({
+                'id': script.id,  # ✅ ADD THIS LINE
                 'script_name': script.script_name,
                 'slug': script.slug,
                 'script_description': script.script_description or "No description.",

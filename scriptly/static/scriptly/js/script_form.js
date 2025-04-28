@@ -3,7 +3,7 @@ console.log("✅ script_form.js loaded!");
 document.addEventListener("DOMContentLoaded", function () {
     console.log("✅ DOM ready");
 
-    // 🔁 Form submit handler
+    // Form submit handler (AJAX submission)
     $(document).on('submit', '.scriptly-job-form', function (e) {
         e.preventDefault();
         console.log("🔥 form submit handler triggered");
@@ -19,7 +19,6 @@ document.addEventListener("DOMContentLoaded", function () {
             processData: false,
             success: function (data) {
                 console.log("✅ AJAX response received", data);
-
                 if (data.valid) {
                     const modalHTML = `
                         <div class="modal fade" id="jobCompleteModal" tabindex="-1" role="dialog">
@@ -39,8 +38,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                 </div>
                             </div>
                         </div>`;
-
-                    $('#jobCompleteModal').remove();  // Clear existing modals
+                    $('#jobCompleteModal').remove();
                     $('body').append(modalHTML);
                     $('#jobCompleteModal').modal('show');
                 } else {
@@ -54,9 +52,6 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 
-    // ✅ Optional: Catch manual submit button
-    $(document).on("click", "#Scriptly-form-submit", function (e) {
-        e.preventDefault();
-        $('.scriptly-job-form').trigger("submit");
-    });
+    // Browse button logic (delegate to file_browser.js)
+    console.log("🟢 Waiting for file_browser.js to handle browse buttons.");
 });

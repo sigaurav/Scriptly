@@ -800,27 +800,40 @@ def test_fastx(filepath):
     return False, None
 
 
-def create_job_fileinfo(job):
-    parameters = job.get_parameters()
-    from ..models import ScriptlyFile, UserFile
+# ... (imports and utility methods unchanged)
 
-    # first, create a reference to things the script explicitly created that is a parameter
+def create_job_fileinfo(job):
+    from ..models import ScriptlyFile, UserFile
+    from django.conf import settings
+    import shutil
+
+    parameters = job.get_parameters()
     files = []
     local_storage = get_storage(local=True)
+
+    group_name = job.script_version.script.script_group.group_name
+    script_name = job.script_version.script.script_name
+    output_dir = os.path.join("media", group_name, script_name)
+
+    abs_output_dir = os.path.join(settings.MEDIA_ROOT, output_dir)
+    mkdirs(abs_output_dir)
+
+    output_files_for_job = []
+
     for field in parameters:
         try:
             if field.parameter.form_field == "FileField":
                 value = field.value
                 if value is None:
                     continue
+
+                # If it's a file path (string)
                 if isinstance(value, str):
-                    # if this exists locally, but not remotely, upload the asset
                     if local_storage.exists(value):
+                        value_file = local_storage.open(value)
                         if not get_storage(local=False).exists(value):
-                            get_storage(local=False).save(
-                                value, File(local_storage.open(value))
-                            )
-                        value = field.value
+                            get_storage(local=False).save(value, File(value_file))
+                        value = File(value_file)
                     else:
                         field.force_value(None)
                         try:
@@ -829,137 +842,51 @@ def create_job_fileinfo(job):
                         except Exception:
                             sys.stderr.write("{}\n".format(traceback.format_exc()))
                         continue
+
                 d = {"parameter": field, "file": value, "size_bytes": value.size}
                 if field.parameter.is_output:
-                    full_path = os.path.join(
-                        job.save_path, os.path.split(value.name)[1]
-                    )
-                    checksum = get_checksum(
-                        path=value, extra=[job.pk, full_path, "output"]
-                    )
-                    d["checksum"] = checksum
+                    original_filename = os.path.basename(value.name)
+                    new_rel_path = os.path.join(output_dir, original_filename)
+                    new_abs_path = os.path.join(settings.MEDIA_ROOT, new_rel_path)
+
+                    shutil.copy(value.file.name, new_abs_path)
+
+                    job.output_file_path = new_rel_path  # Save in model
+                    job.save()
+
+                    d["checksum"] = get_checksum(path=new_abs_path)
+                    output_files_for_job.append(new_rel_path)
+
                 files.append(d)
         except ValueError:
             continue
 
-    known_files = {i["file"].name for i in files}
-    # add the user_output files, these are things which may be missed by the model fields because the script
-    # generated them without an explicit arguments reference in the script
-    file_groups = {"archives": []}
-    absbase = os.path.join(settings.MEDIA_ROOT, job.save_path)
-    for root, dirs, dir_files in os.walk(absbase):
-        for filename in dir_files:
-            rel_name = os.path.join(
-                root.replace(absbase, "").lstrip(os.path.sep), filename
+    for d in files:
+        try:
+            filepath = d["file"].name
+            checksum = d.get("checksum", get_checksum(path=filepath))
+            scriptly_file, _ = ScriptlyFile.objects.get_or_create(
+                checksum=checksum,
+                defaults={
+                    "filepath": filepath,
+                    "filetype": "output" if d["parameter"].parameter.is_output else "input",
+                    "filepreview": "",
+                    "size_bytes": d["size_bytes"],
+                },
             )
-            rel_path = os.path.join(job.save_path, rel_name)
-            if any([i.endswith(rel_path) for i in known_files]):
-                continue
-            try:
-                filepath = os.path.join(root, filename)
-                if os.path.isdir(filepath):
-                    continue
-                # this is to make the job output have a unique checksum. If this file is then re-uploaded, it will create
-                # a new file to reference in the uploads directory and not link back to the job output.
-                checksum = get_checksum(
-                    path=filepath, extra=[job.pk, rel_path, "output"]
-                )
-                try:
-                    with get_storage_object(rel_path) as storage_file:
-                        d = {
-                            "name": rel_name,
-                            "file": storage_file,
-                            "size_bytes": storage_file.size,
-                            "checksum": checksum,
-                        }
-                except Exception:
-                    sys.stderr.write(
-                        "Error in accessing stored file {}:\n{}".format(
-                            rel_path, traceback.format_exc()
-                        )
-                    )
-                    continue
-                if filename.endswith(".tar.gz") or filename.endswith(".zip"):
-                    file_groups["archives"].append(d)
-                else:
-                    files.append(d)
-            except IOError:
-                sys.stderr.write("{}".format(traceback.format_exc()))
-                continue
 
-    # establish grouping by inferring common things
-    file_groups["all"] = files
-    file_groups["image"] = []
-    file_groups["tabular"] = []
-    file_groups["fasta"] = []
-
-    for filemodel in files:
-        fileinfo = get_file_info(filemodel["file"].path)
-        filetype = fileinfo.get("type")
-        if filetype is not None:
-            file_groups[filetype].append(
-                dict(filemodel, **{"preview": fileinfo.get("preview")})
+            UserFile.objects.get_or_create(
+                job=job,
+                parameter=d["parameter"],
+                system_file=scriptly_file,
+                filename=os.path.basename(filepath),
             )
-        else:
-            filemodel["preview"] = json.dumps(None)
+        except Exception:
+            sys.stderr.write(
+                "Error saving file info for {}:\n{}".format(filepath, traceback.format_exc())
+            )
+            continue
 
-    # Create our ScriptlyFile models
-    # mark things that are in groups so we don't add this to the 'all' category too to reduce redundancy
-    grouped = set(
-        [
-            i["file"].path
-            for file_type, groups in file_groups.items()
-            for i in groups
-            if file_type != "all"
-        ]
-    )
-    for file_type, group_files in file_groups.items():
-        for group_file in group_files:
-            if file_type == "all" and group_file["file"].path in grouped:
-                continue
-            try:
-                preview = group_file.get("preview")
-                size_bytes = group_file.get("size_bytes")
-
-                filepath = group_file["file"].path
-                save_path = job.get_relative_path(filepath)
-                parameter = group_file.get("parameter")
-
-                # get the checksum of the file to see if we need to save it
-                checksum = group_file.get("checksum", get_checksum(path=filepath))
-                try:
-                    scriptly_file = ScriptlyFile.objects.get(checksum=checksum)
-                    file_created = False
-                except ObjectDoesNotExist:
-                    scriptly_file = ScriptlyFile(
-                        checksum=checksum,
-                        filetype=file_type,
-                        filepreview=preview,
-                        size_bytes=size_bytes,
-                        filepath=save_path,
-                    )
-                    file_created = True
-                userfile_kwargs = {
-                    "job": job,
-                    "parameter": parameter,
-                    "system_file": scriptly_file,
-                    "filename": os.path.split(filepath)[1],
-                }
-                try:
-                    with transaction.atomic():
-                        if file_created:
-                            scriptly_file.save()
-                        job.save()
-                        UserFile.objects.get_or_create(**userfile_kwargs)
-                except Exception:
-                    sys.stderr.write(
-                        "Error in saving DJFile: {}\n".format(traceback.format_exc())
-                    )
-            except Exception:
-                sys.stderr.write(
-                    "Error in saving DJFile: {}\n".format(traceback.format_exc())
-                )
-                continue
 
 
 def get_checksum(path=None, buff=None, extra=None):
