@@ -113,81 +113,54 @@
         <div id="inline-js">
 {% block inline_js %}
         <script>
-$(document).ready(function () {
-    $("#menu-toggle").click(function(e) {
-        e.preventDefault();
-        $("#wrapper").toggleClass("toggled");
-    });
-
-    // 🌟 Sidebar Search Functionality
-    $("#sidebarsearchform").on("keyup", function () {
-        var query = $(this).val();
-        if (query.length < 2) {
-            $("#sidebarsearchresults").empty();
-            return;
-        }
-
-        $.ajax({
-            url: "{% url 'scriptly:scriptly_search_script_json' %}",
-            method: "GET",
-            data: { query: query },
-            dataType: "json",
-            success: function (data) {
-                const $results = $("#sidebarsearchresults");
-                $results.empty();
-
-                if (data.results.length === 0) {
-                    $results.append("<li><em>No results found</em></li>");
-                    return;
-                }
-
-                data.results.forEach(script => {
-                    $results.append(
-                        `<li class="sidebarsearchresult"><a href="/scripts/group/${script.group_id}/?script_id=${script.id}">${script.name}</a></li>`
-                    );
+            $(document).ready(function () {
+                $("#menu-toggle").click(function(e) {
+                    e.preventDefault();
+                    $("#wrapper").toggleClass("toggled");
                 });
 
-                $(".sidebarsearchresult a").on("click", function () {
-                    $("#sidebarsearchresults").empty();
+                // 🌟 Sidebar Search Functionality
+                $("#sidebarsearchform").on("keyup", function () {
+                    var query = $(this).val();
+                    if (query.length < 2) {
+                        $("#sidebarsearchresults").empty();
+                        return;
+                    }
+
+                    $.ajax({
+                        url: "{% url 'scriptly:scriptly_search_script_json' %}",
+                        method: "GET",
+                        data: { query: query },
+                        dataType: "json",
+                        success: function (data) {
+                            const $results = $("#sidebarsearchresults");
+                            $results.empty();
+
+                            if (data.results.length === 0) {
+                                $results.append("<li><em>No results found</em></li>");
+                                return;
+                            }
+
+                            data.results.forEach(script => {
+                                $results.append(
+                                    `<li class="sidebarsearchresult"><a href="/scripts/group/${script.group_id}/?script_id=${script.id}">${script.name}</a></li>`
+                                );
+                            });
+
+                            $(".sidebarsearchresult a").on("click", function () {
+                                $("#sidebarsearchresults").empty();
+                            });
+                        },
+                        error: function () {
+                            console.error("Search failed");
+                        }
+                    });
                 });
-            },
-            error: function () {
-                console.error("Search failed");
-            }
-        });
-    });
 
 
-});
-</script>
-<!--<script>-->
-<!--$(document).on('submit', '.script-form', function(e) {-->
-<!--    e.preventDefault();-->
+            });
+            </script>
 
-<!--    const $form = $(this);-->
-<!--    const url = $form.attr('action');-->
-<!--    const formData = new FormData(this);-->
-
-<!--    $.ajax({-->
-<!--        type: "POST",-->
-<!--        url: url,-->
-<!--        data: formData,-->
-<!--        processData: false,-->
-<!--        contentType: false,-->
-<!--        success: function (response) {-->
-<!--            if (response.valid && response.redirect) {-->
-<!--                window.location.href = response.redirect;-->
-<!--            } else {-->
-<!--                alert("Validation failed");-->
-<!--                console.log(response.errors);-->
-<!--            }-->
-<!--        },-->
-<!--        error: function () {-->
-<!--            alert("Submission failed. Please try again.");-->
-<!--        }-->
-<!--    });-->
-<!--});-->
-<!--</script>-->
 
         {% endblock inline_js %}
         </div>

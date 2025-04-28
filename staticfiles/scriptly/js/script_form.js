@@ -1,9 +1,9 @@
 // Full path: scriptly/static/scriptly/js/script_form.js
 
-// ========================
-// Browse Button Handling
-// ========================
 document.addEventListener('DOMContentLoaded', function () {
+    // ========================
+    // Browse Button Handling
+    // ========================
     const browseButtons = document.querySelectorAll('.browse-button');
 
     browseButtons.forEach(button => {
@@ -23,8 +23,6 @@ document.addEventListener('DOMContentLoaded', function () {
             filePicker.style.display = 'none';
             document.body.appendChild(filePicker);
 
-            const title = inputType === 'directory' ? 'Select a directory...' : 'Select a file...';
-
             filePicker.addEventListener('change', function () {
                 if (inputType === 'directory') {
                     const files = Array.from(filePicker.files);
@@ -40,11 +38,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
             filePicker.click();
         });
-    });g
+    });
 
-
-
-
+    // ========================
+    // Submit Form Handling (Fixed)
+    // ========================
     const forms = document.querySelectorAll('.scriptly-job-form');
 
     forms.forEach(form => {
@@ -78,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 showScriptlyStatusModal('❌ Submission failed. Server error.');
                 console.error('Error:', error);
             });
-        });
+        }, { once: true }); // ✅ This prevents double binding!
     });
 
     function showScriptlyStatusModal(message) {

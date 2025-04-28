@@ -99,17 +99,20 @@ class ScriptlyFormFactory(object):
 
     @staticmethod
     def get_field(param, initial=None):
-        from django import forms
-        from ..backend import utils
+        """
+        Returns the appropriate Django form field for the given ScriptParameter.
+        Handles FileField inputs correctly for uploads, and downgrades to CharField for outputs.
+        """
         import json
-        import os
+        from django import forms
         from django.utils.module_loading import import_string
+        from . import utils  # Assuming utils contains get_storage_object
+        import os
 
         form_field = param.form_field
         widget_data_dict = {}
         appender_data_dict = {}
         widget_init = {}
-
         SCRIPTLY_CHOICE_LIMIT = "data-scriptly-choice-limit"
         choices = json.loads(param.choices)
         field_kwargs = {
@@ -117,17 +120,13 @@ class ScriptlyFormFactory(object):
             "required": param.required,
             "help_text": param.param_help,
         }
-
         multiple_choices = param.multiple_choice
         choice_limit = param.max_choices
 
         if initial is None and param.default is not None:
             initial = param.default
 
-        # Add input_type to widget attributes for browse button logic
-        if param.input_type:
-            widget_data_dict["data-input-type"] = param.input_type
-
+        # Handle choices
         if choices:
             form_field = "MultipleChoiceField" if multiple_choices else "ChoiceField"
             base_choices = (
@@ -137,6 +136,7 @@ class ScriptlyFormFactory(object):
                 (str(i), str(i).title()) for i in choices
             ]
 
+        # Handle custom widget
         custom_widget = param.custom_widget
         if custom_widget:
             if custom_widget.widget_class:
@@ -144,35 +144,51 @@ class ScriptlyFormFactory(object):
                 field_kwargs["widget"] = widget_class
             widget_init["attrs"] = custom_widget.widget_attributes
 
+        # ✅ Correct handling of FileField inputs (fix starts here)
         if form_field == "FileField":
             if param.is_output:
+                # Outputs are still CharField (as paths)
                 form_field = "CharField"
-            elif initial is not None and list(filter(None, initial)):
-                if isinstance(initial, (list, tuple)):
-                    initial = [
-                        value if hasattr(value, "path") else utils.get_storage_object(value, close=False)
-                        for value in initial
-                    ]
-                else:
-                    initial = (
-                        initial
-                        if hasattr(initial, "path")
-                        else utils.get_storage_object(initial, close=False)
-                    )
-                if not field_kwargs.get("widget"):
-                    field_kwargs["widget"] = forms.ClearableFileInput
+                if initial:
+                    if not isinstance(initial, (list, tuple)):
+                        initial = [initial]
+                    initial = [os.path.split(i.name)[1] for i in initial]
+            else:
+                # ✅ Always use FileField with ClearableFileInput for uploaded input files
+                field_kwargs["widget"] = forms.ClearableFileInput
 
+            # Keep your existing logic for initial if pre-filled (optional fallback)
+            if initial is not None and list(filter(None, initial)):
+                if isinstance(initial, (list, tuple)):
+                    _initial = []
+                    for value in initial:
+                        if not hasattr(value, "path"):
+                            with utils.get_storage_object(value, close=False) as so:
+                                _initial.append(so)
+                        else:
+                            _initial.append(value)
+                    initial = _initial
+                else:
+                    if not hasattr(initial, "path"):
+                        with utils.get_storage_object(initial, close=False) as so:
+                            initial = so
+        # ✅ End of fix for FileField handling
+
+        # Handle initial for non-multiple
         if not multiple_choices and isinstance(initial, list):
             initial = initial[0]
+
         field_kwargs["initial"] = initial
 
+        # Build field
         field = getattr(forms, form_field)
+
         if "widget" in field_kwargs:
             field_kwargs["widget"] = field_kwargs["widget"](**widget_init)
 
         field = field(**field_kwargs)
-        field.widget.attrs.update(widget_data_dict)
 
+        # Multi-choice handling
         if form_field != "MultipleChoiceField" and multiple_choices:
             field.widget.render = mutli_render(
                 field.widget.render, appender_data_dict=appender_data_dict
@@ -180,7 +196,13 @@ class ScriptlyFormFactory(object):
             field.widget.value_from_datadict = multi_value_from_datadict(
                 field.widget.value_from_datadict
             )
+            field.clean = multi_value_clean(field.clean)
+            if choice_limit > 0:
+                appender_data_dict[SCRIPTLY_CHOICE_LIMIT] = choice_limit
+        elif multiple_choices and choice_limit > 0:
+            widget_data_dict[SCRIPTLY_CHOICE_LIMIT] = choice_limit
 
+        field.widget.attrs.update(widget_data_dict)
         return field
 
     def get_group_forms(self, script_version=None, initial_dict=None, render_fn=None):

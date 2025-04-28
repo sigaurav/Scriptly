@@ -61,6 +61,23 @@
                 {% if script.scriptly_form.scriptly_parser %}
                   <input type="hidden" name="scriptly_parser" value="{{ script.scriptly_form.scriptly_parser.value }}">
                 {% endif %}
+                <div class="form-group">
+                  <label for="scriptly_job_name">Job Name</label>
+                  <input type="text"
+                         class="form-control"
+                         id="scriptly_job_name"
+                         name="job_name"
+                         placeholder="Enter job name"
+                         value="{{ script.script_name }} {% now 'Y:m:d-H:i:s' %}"
+              </div>
+
+<div class="form-group">
+    <label for="scriptly_job_description">Job Description</label>
+    <textarea class="form-control"
+              id="scriptly_job_description"
+              name="job_description"
+              placeholder="Enter job description (optional)..."></textarea>
+</div>
                 <button type="submit" class="btn btn-primary">Submit</button>
               </form>
             </li>
@@ -74,9 +91,6 @@
 </div>
 {% endblock %}
 
-{% block inline_js %}
-  <script src="{% static 'scriptly/js/script_form.js' %}"></script>
-{% endblock %}
 
 {% block extra_js %}
   <script src="{% static 'scriptly/js/file_browser.js' %}"></script>

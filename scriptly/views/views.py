@@ -63,7 +63,12 @@ class ScriptlyScriptSubmitView(View):
             )
             utils.validate_form(form=form, data=post, files=request.FILES)
 
+            utils.validate_form(form=form, data=post, files=request.FILES)
+
             if form.errors:
+                print("🔥 FORM VALIDATION FAILED:", form.errors)
+                print("🚀 Received POST data:", post)
+                print("📂 Received FILES data:", request.FILES)
                 return JsonResponse({"valid": False, "errors": form.errors})
 
             version_pk = form.cleaned_data.get("scriptly_type")
