@@ -92,16 +92,12 @@ def purge_output(job=None):
 
 def get_job_commands(job=None, executable=None):
     script_version = job.script_version
-    com = (
-        [executable]
-        if executable is not None
-        else ([sys.executable] if sys.executable else [])
-    )
-    com.extend([script_version.get_script_path()])
+    script_path = script_version.get_script_path()  # Always use the correct stored path
+    command = [executable if executable else sys.executable, script_path]
 
     parameters = job.get_parameters()
-    base_parameters = [i for i in parameters if not i.parameter.parser.name]
-    command_parameters = [i for i in parameters if i.parameter.parser.name]
+    base_parameters = [p for p in parameters if not p.parameter.parser.name]
+    command_parameters = [p for p in parameters if p.parameter.parser.name]
 
     param_dict = OrderedDict()
     param_info_dict = {}
@@ -112,11 +108,7 @@ def get_job_commands(job=None, executable=None):
             continue
         subproc_param = subproc_dict["parameter"]
         param_info_dict[subproc_param] = subproc_dict["script_parameter"]
-        if subproc_param not in param_dict:
-            param_dict[subproc_param] = []
-        subproc_value = subproc_dict.get("value", None)
-        if subproc_value:
-            param_dict[subproc_param].append(subproc_value)
+        param_dict.setdefault(subproc_param, []).append(subproc_dict.get("value"))
 
     added_parsers = set()
 
@@ -124,50 +116,40 @@ def get_job_commands(job=None, executable=None):
         if param_info and param_info.parser.pk not in added_parsers:
             added_parsers.add(param_info.parser.pk)
             if param_info.parser.name:
-                com.append(param_info.parser.name)
+                command.append(param_info.parser.name)
 
     for param, values in param_dict.items():
         param_info = param_info_dict.get(param, None)
+        append_parser(param_info)
         if param and not values:
-            append_parser(param_info)
-            com.append(param)
+            command.append(param)
         else:
-            for index, value in enumerate(values):
-                append_parser(param_info)
-                if param and (
-                    param_info is None
-                    or not param_info.collapse_arguments
-                    or index == 0
-                ):
-                    com.append(param)
-                com.append(value)
+            for idx, value in enumerate(values):
+                if param and (param_info is None or not param_info.collapse_arguments or idx == 0):
+                    command.append(param)
+                command.append(value)
 
-    return com
+    return command
+
 
 
 @transaction.atomic
-def create_scriptly_job(
-    user=None, script_version_pk=None, script_parser_pk=None, data=None
-):
-    from ..models import (
-        ScriptlyJob,
-        ScriptParameter,
-        ScriptParameters,
-        ScriptVersion,
-    )
+def create_scriptly_job(user=None, script_version_pk=None, script_parser_pk=None, data=None):
+    from ..models import ScriptlyJob, ScriptParameter, ScriptParameters, ScriptVersion
+    from django.core.files import File
 
-    script_version = ScriptVersion.objects.select_related("script").get(
-        pk=script_version_pk
-    )
+    script_version = ScriptVersion.objects.select_related("script").get(pk=script_version_pk)
+
     if script_parser_pk is None:
         script_parsers = list(script_version.scriptparser_set.all())
         if len(script_parsers) == 1:
-            script_parser_pk = script_parsers[0]
+            script_parser_pk = script_parsers[0].pk
         elif len(script_parsers) > 1:
-            raise Exception(
-                "A script_version with multiple subparsers was passed without indicating selected subparser."
-            )
+            raise Exception("Multiple subparsers found but no parser selected.")
+
     data = data or {}
+
+    print("💥 CLEANED DATA RECEIVED:", data)  # ✅ Debugging line to verify incoming data
 
     job = ScriptlyJob(
         user=user,
@@ -177,27 +159,34 @@ def create_scriptly_job(
     )
     job.save()
 
-    # Because we use slugs, we do not need to filter by script_version=script_version here. We are going to eventually
-    # have a setup where Script points at ScriptParameter instead of SP->SV. This will let us reuse slugs for
-    # a script class
     parameters = OrderedDict(
         [
             (i.form_slug, i)
             for i in ScriptParameter.objects.select_related("parser")
-            .filter(slug__in=[i.split("-", 1)[-1] for i in data.keys()])
-            .filter(Q(parser_id=script_parser_pk) | Q(parser__name=""))
-            .order_by("param_order", "pk")
+        .filter(slug__in=list(data.keys()))
+        .filter(Q(parser_id=script_parser_pk) | Q(parser__name=""))
+        .order_by("param_order", "pk")
         ]
     )
 
     for form_slug, param in parameters.items():
-        # If the parser has no name, it indicates it is the base parser. Otherwise, only parametrize the
-        # chosen parser
         if param.parser_id != script_parser_pk and param.parser.name:
             continue
 
         slug_values = data.get(form_slug)
+        if slug_values is None:
+            continue
+
+        # ✅ If UploadedFile, save it first
+        if hasattr(slug_values, 'file'):  # Detect UploadedFile
+            storage = get_storage(local=False)
+            uploaded_file = slug_values
+            upload_path = get_upload_path(uploaded_file.name)
+            storage.save(upload_path, uploaded_file)
+            slug_values = upload_path  # Replace object with path string
+
         slug_values = slug_values if isinstance(slug_values, list) else [slug_values]
+
         for slug_value in slug_values:
             new_param = ScriptParameters(job=job, parameter=param)
             new_param.value = slug_value
@@ -589,14 +578,35 @@ def add_scriptly_script(
 
             for param in param_group_info.get("nodes"):
                 # TODO: fix 'file' to be global in argparse
-                is_out = (
-                    True
-                    if (
-                        param.get("upload", None) is False
-                        and param.get("type") == "file"
-                    )
-                    else not param.get("upload", False)
-                )
+                # ✅ Corrected is_output detection logic:
+                # Positional arguments (no "param") are always treated as INPUTS, not outputs.
+                if not param.get("param"):  # Positional argument → always input!
+                    is_out = False
+                else:
+                    # For optional arguments, decide based on 'upload' and 'type'
+                    is_out = (
+                            param.get("upload", None) is False
+                            and param.get("type") == "file"
+                    ) if "upload" in param else not param.get("upload", False)
+
+                # ✅ Corrected form_field ("model") assignment logic:
+                if param.get("type") == "file":
+                    if is_out:
+                        param["model"] = "CharField"  # Outputs stay CharField (for file path storage)
+                    else:
+                        param["model"] = "FileField"  # Inputs must be FileField for file uploads
+                elif param.get("type") in ("str", "string", None):
+                    param["model"] = "CharField"
+                elif param.get("type") in ("bool", "boolean"):
+                    param["model"] = "BooleanField"
+                elif param.get("type") in ("int", "integer"):
+                    param["model"] = "IntegerField"
+                elif param.get("type") in ("float", "double"):
+                    param["model"] = "FloatField"
+                else:
+                    # Fallback for unknown types
+                    param["model"] = "CharField"
+
                 script_param_kwargs = {
                     "short_param": param["param"],
                     "script_param": param["name"],

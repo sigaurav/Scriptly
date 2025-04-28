@@ -92,13 +92,12 @@ class ScriptlyScriptSubmitView(View):
             )
 
             tasks = importlib.import_module(scriptly_settings.SCRIPTLY_CELERY_TASKS)
-            tasks.run_scriptly_job.delay(job.id)
+            tasks.submit_script.delay(scriptly_job=job.id)
 
             return JsonResponse({
                 "valid": True,
                 "message": "Job submitted successfully",
-                "job_id": job.id,
-                "redirect": reverse("scriptly:scriptly_job_detail", kwargs={"job_id": job.id})
+                "job_id": job.id
             })
 
         except Exception as e:

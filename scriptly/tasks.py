@@ -169,6 +169,9 @@ def submit_script(**kwargs):
     resubmit = kwargs.pop("scriptly_resubmit", False)
     ScriptlyJob = apps.get_model("scriptly", "ScriptlyJob")
 
+
+    print(f"🔥 Received kwargs in submit_script: {kwargs}, job_id: {job_id}") # to be deleted
+
     job = ScriptlyJob.objects.get(pk=job_id)
     job.update_realtime(delete=True)
     stdout, stderr = "", ""
