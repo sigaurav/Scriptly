@@ -142,3 +142,11 @@ def get_range(value):
 def absolute_url(context, url):
     request = context["request"]
     return request.build_absolute_uri(url)
+
+
+import os
+
+@register.filter
+def basename(value):
+    """Returns just the file name from a full path."""
+    return os.path.basename(value)

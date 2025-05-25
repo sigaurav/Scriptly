@@ -8,9 +8,7 @@ from django.contrib.auth.views import LogoutView
 
 from scriptly.views import (
     ScriptlyHomeView,
-    ScriptlyScriptView,
     ScriptlyScriptSearchJSON,
-    ScriptlyScriptSearchJSONHTML,
     UserResultsView,
     user_results_json,
     ScriptlyProfileView,
@@ -27,8 +25,6 @@ urlpatterns = [
     path('submit/', ScriptlyScriptSubmitView.as_view(), name='scriptly_submit_script'),
     # Script search endpoints
     path("search/script/json", ScriptlyScriptSearchJSON.as_view(), name="scriptly_search_script_json"),
-    path('search/jsonhtml', ScriptlyScriptSearchJSONHTML.as_view(), name='scriptly_search_script_jsonhtml'),
-
 
     # User results
     path('jobs/results/user', login_required(UserResultsView.as_view()), name='user_results'),
@@ -52,7 +48,5 @@ urlpatterns = [
     path('accounts/login/', ScriptlyLoginView.as_view(), name='scriptly_login'),
     path('accounts/logout/', LogoutView.as_view(next_page='scriptly:scriptly_login'), name='logout'),
 
-    # Script detail and execution
-    path('<slug:slug>/', ScriptlyScriptView.as_view(), name='scriptly_script'),
 
 ]

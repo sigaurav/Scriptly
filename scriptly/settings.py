@@ -17,6 +17,17 @@ def get(key, default):
 
 IS_WINDOWS = os.name == "nt"
 
+
+# Broker URL for Redis
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+
+# Optional: Result backend
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+
+# Allow Celery CLI to pick up this app
+SCRIPTLY_CELERY = True
+
+
 # AUTH based settings
 SCRIPTLY_ALLOW_ANONYMOUS = get("SCRIPTLY_ALLOW_ANONYMOUS", True)
 SCRIPTLY_AUTH = get("SCRIPTLY_AUTH", True)

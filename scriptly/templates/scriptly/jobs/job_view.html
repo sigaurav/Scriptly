@@ -3,67 +3,76 @@
 {% load scriptly_tags %}
 
 {% block breadcrumbs %}
-    <li><a href="{{ job.script_version.script.get_url }}">{{ job.script_version.script.script_name }}</a></li>
-    <li><a href="#">{% blocktrans with job_id=job.id %}Job #{{ job_id }}{% endblocktrans %}</a></li>
+    {% if job.script_version and job.script_version.script %}
+        <li>
+            <a href="{% url 'scriptly:script_group_detail' group_id=job.script_version.script.script_group.id %}?script_id={{ job.script_version.script.id }}">
+                {{ job.script_version.script.script_name }}
+            </a>
+        </li>
+    {% endif %}
+    <li><a href="#">Job #{{ job.id }}</a></li>
 {% endblock breadcrumbs %}
 
-{% block center_content_class %}col-md-12 col-xs-12{% endblock center_content_class %}
+{% block center_content_class %}col-md-12{% endblock center_content_class %}
 {% block page_content_class %}status-{{ job.status|lower }}{% endblock page_content_class %}
 
 {% block center_content %}
     {% if job_error %}
-        <h1 class="text-center">{{ job_error }}</h1>
+        <h1 class="text-center text-danger">{{ job_error }}</h1>
     {% else %}
-        <div class="page-header">
-            <div class="pull-right">
-                {% if job.status == 'completed' %}
-                    {% for file in output_files %}
-                        <a href="{{ file.url }}" role="button" class="btn btn-primary">
-                            <span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span>
-                            {% trans "Download Output" %}
-                        </a>
-                        {% break %} {# Show only one main download button #}
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <h1>{{ job.job_name }} <small>{{ job.job_description }}</small></h1>
-            <div class="job-metadata">
-                • {% trans "Priority 1" %}
-                • {% blocktrans with job_submission_date=job.created_date|timesince job_user=job.user %}Submitted {{ job_submission_date }} ago by {{ job_user }}{% endblocktrans %}
-                • {% blocktrans with job_last_modified_date=job.modified_date|timesince %}Updated {{ job_last_modified_date }} ago{% endblocktrans %}
-                <span class="label label-{{ job.status|lower }}">
-                    <span class="glyphicon glyphicon-{{ job.status|lower }}"></span> {{ job.status|capfirst }}
-                </span>
-            </div>
-        </div>
-
-        <div id="job-outputs" class="row">
-            {% for output_group, output_files_group in file_groups.items %}
-                {% for output_file in output_files_group %}
-                    {% if output_group %}
-                        {% include 'Scriptly/preview/'|add:output_group|add:'.html' %}
-                    {% endif %}
-                {% endfor %}
-            {% endfor %}
-        </div>
-
-        <div class="row">
-            <div class="col-sm-12 col-md-12">
-                <div class="thumbnail panel panel-{{ 'danger' if job.stderr else 'default' }}">
-                    <div class="panel-heading">
-                        <span class="glyphicon glyphicon-console"></span> {% trans "Console Output" %}
-                        <a class="icon icon-collapse" data-toggle="collapse" data-target="#collapse-console" href="#collapse-console"></a>
-                    </div>
-                    <div id="collapse-console" class="panel-collapse collapse in">
-                        <div class="panel-body console">
-                            <pre class="console-body console-command">{{ job.command }}</pre>
-                            <pre id="console-stdout" class="console-body console-stdout">{{ job.stdout|linebreaksbr }}</pre>
-                            <pre id="console-stderr" class="console-body console-stderr">{{ job.stderr|linebreaksbr }}</pre>
-                        </div>
-                    </div>
+        <div class="page-header d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1">{{ job.job_name }}</h2>
+                <small class="text-muted">{{ job.job_description }}</small>
+                <div class="job-metadata mt-2">
+                    • Submitted {{ job.created_date|timesince }} ago by {{ job.user }}
+                    <span class="label label-{{ job.status|lower }}">
+                        <span class="glyphicon glyphicon-{{ job.status|lower }}"></span> {{ job.status|capfirst }}
+                    </span>
                 </div>
             </div>
         </div>
 
+        <div id="job-outputs" class="mt-4">
+            {% if output_files.Output %}
+                <div class="panel panel-default">
+                    <div class="panel-heading"><strong>Output Files</strong></div>
+                    <ul class="list-group">
+                        {% for file in output_files.Output %}
+                            <li class="list-group-item">
+                                <a href="{{ file.url }}" download>{{ file.filename }}</a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% else %}
+                <div class="alert alert-warning mt-3">
+                    <strong>No output files found.</strong>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="panel panel-default mt-4">
+            <div class="panel-heading">
+                <span class="glyphicon glyphicon-console"></span> Console Output
+                <a class="icon icon-collapse pull-right" data-toggle="collapse" data-target="#collapse-console" href="#collapse-console"></a>
+            </div>
+            <div id="collapse-console" class="panel-collapse collapse in">
+                <div class="panel-body console">
+                    <h5><strong>Command:</strong></h5>
+                    <pre class="bg-light p-2 border rounded" style="white-space: pre-wrap; word-break: break-word;">{{ job.command }}</pre>
+
+                    {% if job.stdout %}
+                        <h5 class="mt-3"><strong>Standard Output (stdout):</strong></h5>
+                        <pre class="bg-success text-white p-3 rounded" style="white-space: pre-wrap;">{{ job.stdout }}</pre>
+                    {% endif %}
+
+                    {% if job.stderr %}
+                        <h5 class="mt-3"><strong>Standard Error (stderr):</strong></h5>
+                        <pre class="bg-danger text-white p-3 rounded" style="white-space: pre-wrap;">{{ job.stderr }}</pre>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     {% endif %}
 {% endblock center_content %}

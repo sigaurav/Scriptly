@@ -2,18 +2,15 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView, View
-from django.http import JsonResponse, HttpResponse
-from django.core.exceptions import ObjectDoesNotExist
+from django.http import JsonResponse
 from django.db.models import Q
-from django.core.serializers import serialize
-
 import importlib
-
+from scriptly.tasks import submit_script
 from .. import settings as scriptly_settings
 from ..backend import utils
 from ..models import ScriptGroup, Script, ScriptVersion, ScriptlyJob
+
 
 # ------------------------------
 # HOME VIEW
@@ -30,7 +27,8 @@ class ScriptlyHomeView(TemplateView):
             scripts = Script.objects.filter(script_group=group, is_active=True).order_by("script_name")
             script_data = []
             for script in scripts:
-                latest_version = ScriptVersion.objects.filter(script=script).order_by("-script_version", "-script_iteration").first()
+                latest_version = ScriptVersion.objects.filter(script=script).order_by("-script_version",
+                                                                                      "-script_iteration").first()
                 script_data.append({
                     "id": script.id,
                     "slug": script.slug,
@@ -55,6 +53,9 @@ class ScriptlyScriptSubmitView(View):
     def post(self, request, *args, **kwargs):
         post = request.POST.copy()
         user = request.user if request.user.is_authenticated else None
+        print("🟢 [DEBUG] ScriptlyScriptSubmitView POST called")
+        print("📥 POST data:", post)
+        print("📁 FILES data:", request.FILES)
 
         try:
             form = utils.get_master_form(
@@ -79,6 +80,7 @@ class ScriptlyScriptSubmitView(View):
             group_valid = utils.valid_user(script_version.script.script_group, user)["valid"]
 
             if not (valid and group_valid):
+                print("⛔ Permission denied")
                 return JsonResponse({
                     "valid": False,
                     "errors": {"__all__": ["Permission denied."]}
@@ -89,36 +91,54 @@ class ScriptlyScriptSubmitView(View):
                 script_version_pk=version_pk,
                 user=user,
                 data=form.cleaned_data,
+                files=self.request.FILES
             )
+            print("✅ Job created with ID:", job.id)
 
-            tasks = importlib.import_module(scriptly_settings.SCRIPTLY_CELERY_TASKS)
-            tasks.submit_script.delay(scriptly_job=job.id)
+            # tasks = importlib.import_module(scriptly_settings.SCRIPTLY_CELERY_TASKS)
+            submit_script.delay(scriptly_job=job.id)
 
+            print("🚀 Task submitted to Celery")
             return JsonResponse({
                 "valid": True,
-                "message": "Job submitted successfully",
-                "job_id": job.id
+                "message": "Your job was submitted successfully!",
+                "job_id": job.id,
+                "redirect": reverse("scriptly:user_results")
             })
 
+
+
         except Exception as e:
+
+            print("💥 Exception caught:", str(e))
+
             return JsonResponse({
+
                 "valid": False,
-                "errors": {"__all__": [f"Unexpected error: {str(e)}"]}
+
+                "errors": {"__all__": [f"Unexpected error: {str(e)}"]},
+
+                "redirect": None,
+
+                "message": "Internal server error"
+
             })
+
 
 # ------------------------------
 # JOB DETAIL VIEW
 # ------------------------------
-@csrf_exempt
 @login_required
 def scriptly_job_detail(request, job_id):
     job = get_object_or_404(ScriptlyJob, pk=job_id)
     output_files = utils.get_file_previews(job)
 
-    return render(request, "scriptly/job_view.html", {
+    print("🧪 output_files from get_file_previews:", output_files)
+    return render(request, "scriptly/jobs/job_view.html", {
         "job": job,
         "output_files": output_files,
     })
+
 
 # ------------------------------
 # SEARCH JSON VIEWS
@@ -139,34 +159,12 @@ class ScriptlyScriptSearchJSON(View):
             "id": script.id,
             "group_id": script.script_group.id,
             "name": script.script_name,
-            "url": reverse("scriptly:script_group_detail", kwargs={"group_id": script.script_group.id}) + f"?script_id={script.id}"
+            "url": reverse("scriptly:script_group_detail",
+                           kwargs={"group_id": script.script_group.id}) + f"?script_id={script.id}"
         } for script in scripts]
 
         return JsonResponse({"results": results})
 
-@method_decorator(login_required, name="dispatch")
-class ScriptlyScriptSearchJSONHTML(View):
-    def get(self, request, *args, **kwargs):
-        query = request.GET.get("q", "")
-        scripts = Script.objects.filter(
-            Q(script_name__icontains=query) | Q(script_description__icontains=query),
-            is_active=True
-        )
-        return render(request, "scriptly/partials/script_search_results.html", {
-            "scripts": scripts,
-        })
-
-# ------------------------------
-# GENERIC SCRIPT VIEW
-# ------------------------------
-class ScriptlyScriptView(TemplateView):
-    template_name = "scriptly/script_view.html"
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        scripts = Script.objects.filter(is_active=True)
-        ctx["scripts"] = scripts
-        return ctx
 
 # ------------------------------
 # USER PROFILE VIEW

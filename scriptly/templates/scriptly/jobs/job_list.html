@@ -21,6 +21,7 @@
                                 <th>{% trans "Script" %}</th>
                                 <th>{% trans "Submitted" %}</th>
                                 <th>{% trans "Status" %}</th>
+                                <th>{% trans "Results" %} </th>
 
                             </tr>
                         </thead>
@@ -50,6 +51,15 @@
                                             <span class="label label-danger"><span class="glyphicon glyphicon-question-sign"></span> {{ job.status|title }}</span>
                                         {% endif %}
 
+                                    </td>
+                                     <td>
+                                        {% if job.output_files %}
+                                            <a href="/media/{{ job.output_files.0 }}" download title="Download Output">
+                                                <span class="glyphicon glyphicon-download-alt"></span>
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted" title="No output available">—</span>
+                                        {% endif %}
                                     </td>
 
                                 </tr>

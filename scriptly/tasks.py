@@ -14,6 +14,7 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.apps import apps
 
+from celery import shared_task
 from celery import app
 from celery.schedules import crontab
 from celery.signals import worker_process_init
@@ -163,7 +164,8 @@ def setup_venv(virtual_environment, job=None, stdout="", stderr=""):
     return (venv_executable, stdout, stderr, return_code)
 
 
-@celery_app.task()
+# @shared_task
+@shared_task
 def submit_script(**kwargs):
     job_id = kwargs.pop("scriptly_job")
     resubmit = kwargs.pop("scriptly_resubmit", False)
@@ -201,6 +203,7 @@ def submit_script(**kwargs):
         job.status = ScriptlyJob.RUNNING
         job.save()
 
+        print("🧪 Final constructed command:", command)
         stdout, stderr, return_code = run_and_stream_command(command, abscwd, job, stdout, stderr)
 
         job = ScriptlyJob.objects.get(pk=job_id)
@@ -257,7 +260,7 @@ def submit_script(**kwargs):
     return (stdout, stderr)
 
 
-@celery_app.task()
+@shared_task
 def cleanup_scriptly_jobs(**kwargs):
     from django.utils import timezone
     ScriptlyJob = apps.get_model("scriptly", "ScriptlyJob")
@@ -274,7 +277,7 @@ def cleanup_scriptly_jobs(**kwargs):
         ScriptlyJob.objects.filter(user__isnull=False, created_date__lte=now - user_settings).delete()
 
 
-@celery_app.task()
+@shared_task
 def cleanup_dead_jobs():
     ScriptlyJob = apps.get_model("scriptly", "ScriptlyJob")
     inspect = celery_app.control.inspect()

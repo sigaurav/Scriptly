@@ -40,11 +40,21 @@
                           <div class="form-group">
                             {{ field.label_tag }}
                             <div style="display: flex; align-items: center;">
-                              {{ field }}
+                              {% if field.field.widget.input_type == "file" %}
+                                <input type="file"
+                                       name="{{ field.name }}"
+                                       id="input-{{ field.name }}"
+                                       data-input-id="input-{{ field.name }}"
+                                       data-input-type="file"
+                                       class="form-control-file" />
+                              {% else %}
+                                {{ field }}
+                              {% endif %}
                               {% if "input_file" in field.name or "input_folder" in field.name %}
                                 <button type="button"
-                                        class="btn btn-secondary browse-btn"
-                                        data-type="{% if 'input_file' in field.name %}file{% else %}directory{% endif %}"
+                                        class="btn btn-secondary browse-button"
+                                        data-input-id="input-{{ field.name }}"
+                                        data-input-type="{% if 'input_file' in field.name %}file{% else %}directory{% endif %}"
                                         style="margin-left: 10px;">
                                   Browse
                                 </button>
@@ -68,16 +78,17 @@
                          id="scriptly_job_name"
                          name="job_name"
                          placeholder="Enter job name"
-                         value="{{ script.script_name }} {% now 'Y:m:d-H:i:s' %}"
-              </div>
+                         value="{{ script.script_name }} {% now 'Y:m:d-H:i:s' %}">
+                </div>
 
-<div class="form-group">
-    <label for="scriptly_job_description">Job Description</label>
-    <textarea class="form-control"
-              id="scriptly_job_description"
-              name="job_description"
-              placeholder="Enter job description (optional)..."></textarea>
-</div>
+                <div class="form-group">
+                  <label for="scriptly_job_description">Job Description</label>
+                  <textarea class="form-control"
+                            id="scriptly_job_description"
+                            name="job_description"
+                            placeholder="Enter job description (optional)..."></textarea>
+                </div>
+
                 <button type="submit" class="btn btn-primary">Submit</button>
               </form>
             </li>
@@ -89,9 +100,4 @@
     </div>
   </div>
 </div>
-{% endblock %}
-
-
-{% block extra_js %}
-  <script src="{% static 'scriptly/js/file_browser.js' %}"></script>
 {% endblock %}

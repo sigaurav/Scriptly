@@ -21,7 +21,6 @@ from ..backend import utils
 # TODO: Handle cases where celery is not setup but specified to be used
 tasks = importlib.import_module(scriptly_settings.SCRIPTLY_CELERY_TASKS)
 
-
 class Project(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -245,6 +244,7 @@ class ScriptlyJob(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True)
     script_version = models.ForeignKey("ScriptVersion", on_delete=models.CASCADE)
+    output_files = models.JSONField(null=True, blank=True, default=list)
 
     error_messages = {
         "invalid_permissions": _("You are not authenticated to view this job."),
@@ -606,19 +606,22 @@ class ScriptParameters(models.Model):
 
     @property
     def value(self):
-        value = json.loads(self._value)
-        if value is not None:
+        raw_value = json.loads(self._value)
+        if raw_value is not None:
             field = self.parameter.form_field
             if field == self.FILE:
-                try:
-                    with utils.get_storage_object(value, close=False) as value:
-                        pass
-                except IOError:
-                    # this can occur when the storage object is not yet made for output
-                    if self.parameter.is_output:
-                        return value
-                    raise IOError
-        return value
+                # Ensure we return path as string
+                if self.parameter.is_output:
+                    return raw_value  # already a string
+                else:
+                    # For input files, convert to full path if not already
+                    try:
+                        storage = utils.get_storage(local=True)
+                        return storage.path(raw_value)  # convert to full local path
+                    except Exception:
+                        return raw_value  # fallback: return as-is
+            return raw_value
+        return None
 
     @value.setter
     def value(self, value):

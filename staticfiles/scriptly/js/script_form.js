@@ -1,5 +1,3 @@
-// Full path: scriptly/static/scriptly/js/script_form.js
-
 document.addEventListener('DOMContentLoaded', function () {
     // ========================
     // Browse Button Handling
@@ -31,7 +29,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         inputField.value = folderPath;
                     }
                 } else {
-                    inputField.value = filePicker.files[0].name;
+                    if (filePicker.files.length > 0) {
+                        // Only assign if inputField is NOT of type="file"
+                        if (inputField.type !== "file") {
+                            inputField.value = filePicker.files[0].name;
+                        }
+                    }
                 }
                 document.body.removeChild(filePicker);
             });
@@ -48,6 +51,7 @@ document.addEventListener('DOMContentLoaded', function () {
     forms.forEach(form => {
         form.addEventListener('submit', function (e) {
             e.preventDefault();
+            e.stopPropagation(); // ✅ Prevent bubbling to any outer handler
 
             const submitButton = form.querySelector('button[type="submit"]');
             submitButton.disabled = true;
@@ -76,17 +80,5 @@ document.addEventListener('DOMContentLoaded', function () {
                 showScriptlyStatusModal('❌ Submission failed. Server error.');
                 console.error('Error:', error);
             });
-        }, { once: true }); // ✅ This prevents double binding!
+        });
     });
-
-    function showScriptlyStatusModal(message) {
-        const modalBody = document.getElementById('scriptlyStatusModalBody');
-        if (modalBody) {
-            modalBody.textContent = message;
-            const modal = new bootstrap.Modal(document.getElementById('scriptlyStatusModal'));
-            modal.show();
-        } else {
-            alert(message); // Fallback if modal is not present
-        }
-    }
-});

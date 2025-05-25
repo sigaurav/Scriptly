@@ -7,6 +7,9 @@ import sys
 import traceback
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
+import hashlib
+import uuid
+from django.conf import settings as scriptly_settings
 
 # Python2.7 encoding= support
 from io import open
@@ -92,51 +95,72 @@ def purge_output(job=None):
 
 def get_job_commands(job=None, executable=None):
     script_version = job.script_version
-    script_path = script_version.get_script_path()  # Always use the correct stored path
+    script_path = script_version.get_script_path()
     command = [executable if executable else sys.executable, script_path]
 
     parameters = job.get_parameters()
+    print("🧩 DEBUG get_job_commands: job.get_parameters() length =", len(parameters))
+    for param in parameters:
+        print("  - param:", param.parameter.script_param, "| value:", param.value)
+
     base_parameters = [p for p in parameters if not p.parameter.parser.name]
     command_parameters = [p for p in parameters if p.parameter.parser.name]
 
-    param_dict = OrderedDict()
-    param_info_dict = {}
-
-    for param in chain(base_parameters, command_parameters):
-        subproc_dict = param.get_subprocess_value()
-        if subproc_dict is None:
-            continue
-        subproc_param = subproc_dict["parameter"]
-        param_info_dict[subproc_param] = subproc_dict["script_parameter"]
-        param_dict.setdefault(subproc_param, []).append(subproc_dict.get("value"))
-
     added_parsers = set()
 
-    def append_parser(param_info):
-        if param_info and param_info.parser.pk not in added_parsers:
-            added_parsers.add(param_info.parser.pk)
-            if param_info.parser.name:
-                command.append(param_info.parser.name)
+    for param in chain(base_parameters, command_parameters):
+        script_param = param.parameter
+        # Add subparser if needed
+        if script_param.parser and script_param.parser.pk not in added_parsers:
+            added_parsers.add(script_param.parser.pk)
+            if script_param.parser.name:
+                command.append(script_param.parser.name)
 
-    for param, values in param_dict.items():
-        param_info = param_info_dict.get(param, None)
-        append_parser(param_info)
-        if param and not values:
-            command.append(param)
+        value = param.value
+
+        short_param = script_param.short_param
+        print(f"🧪 Final value added for {script_param.slug}: {value}")
+        if value in (None, '', []):
+            continue
+
+        # Ensure the value is a string or a list of strings
+        try:
+            if isinstance(value, list):
+                value = [str(v) for v in value]
+            else:
+                value = str(value)
+        except Exception as e:
+            print(f"⚠️ Skipping parameter {script_param.slug} due to conversion error: {e}")
+            continue
+
+        if short_param:
+            command.append(short_param)
+
+        if isinstance(value, list):
+            command.extend([str(v) for v in value])
         else:
-            for idx, value in enumerate(values):
-                if param and (param_info is None or not param_info.collapse_arguments or idx == 0):
-                    command.append(param)
-                command.append(value)
+            command.append(str(value))
 
+
+    print("📦 JOB PARAMETER DEBUG START")
+    for param in job.get_parameters():
+        print(f"🔸 param.slug={param.parameter.slug}")
+        print(f"🔸 param.short_param={param.parameter.short_param}")
+        print(f"🔸 param.value={param.value}")
+        print(f"🔸 is_output={param.parameter.is_output}")
+        print("-----")
+    print("📦 JOB PARAMETER DEBUG END")
+
+    print("🧪 Final constructed command:", command)
     return command
 
 
 
+
 @transaction.atomic
-def create_scriptly_job(user=None, script_version_pk=None, script_parser_pk=None, data=None):
+def create_scriptly_job(user=None, script_version_pk=None, script_parser_pk=None, data=None, files=None):
     from ..models import ScriptlyJob, ScriptParameter, ScriptParameters, ScriptVersion
-    from django.core.files import File
+    from .utils import get_storage, get_upload_path
 
     script_version = ScriptVersion.objects.select_related("script").get(pk=script_version_pk)
 
@@ -148,8 +172,7 @@ def create_scriptly_job(user=None, script_version_pk=None, script_parser_pk=None
             raise Exception("Multiple subparsers found but no parser selected.")
 
     data = data or {}
-
-    print("💥 CLEANED DATA RECEIVED:", data)  # ✅ Debugging line to verify incoming data
+    print("💥 CLEANED DATA RECEIVED:", data)
 
     job = ScriptlyJob(
         user=user,
@@ -159,40 +182,59 @@ def create_scriptly_job(user=None, script_version_pk=None, script_parser_pk=None
     )
     job.save()
 
-    parameters = OrderedDict(
-        [
-            (i.form_slug, i)
-            for i in ScriptParameter.objects.select_related("parser")
-        .filter(slug__in=list(data.keys()))
+    parameters = OrderedDict([
+        (param.form_slug, param)
+        for param in ScriptParameter.objects.select_related("parser")
+        .filter(script_version=script_version)
         .filter(Q(parser_id=script_parser_pk) | Q(parser__name=""))
         .order_by("param_order", "pk")
-        ]
-    )
+    ])
+
+    print("🧩 PARAMETER COUNT:", len(parameters))
 
     for form_slug, param in parameters.items():
-        if param.parser_id != script_parser_pk and param.parser.name:
+        print(f"🔹 Checking param: {param.script_param} ({param.slug}), parser={param.parser_id}")
+
+        if param.parser_id and param.parser_id != script_parser_pk:
+            print(f"⛔ Skipping {param.slug}: parser mismatch")
             continue
 
-        slug_values = data.get(form_slug)
-        if slug_values is None:
-            continue
+        uploaded_file = files.getlist(form_slug)[0] if files and form_slug in files else None
+        print(f"📥 File: {uploaded_file}")
 
-        # ✅ If UploadedFile, save it first
-        if hasattr(slug_values, 'file'):  # Detect UploadedFile
-            storage = get_storage(local=False)
-            uploaded_file = slug_values
-            upload_path = get_upload_path(uploaded_file.name)
-            storage.save(upload_path, uploaded_file)
-            slug_values = upload_path  # Replace object with path string
+        final_value = None
 
-        slug_values = slug_values if isinstance(slug_values, list) else [slug_values]
+        try:
+            if uploaded_file:
+                storage = get_storage(local=False)
+                upload_path = get_upload_path(uploaded_file)
+                saved_path = storage.save(upload_path, File(uploaded_file))
+                final_value = storage.path(saved_path)
 
-        for slug_value in slug_values:
-            new_param = ScriptParameters(job=job, parameter=param)
-            new_param.value = slug_value
-            new_param.save()
+                print(f"✅ Saved file for {param.slug} at {final_value}")
+                print(f"📁 File exists: {os.path.exists(final_value)}")
+            else:
+                val = data.get(form_slug)
+                val = val[0] if isinstance(val, list) else val
+                if not val:
+                    print(f"⚠️ No usable value for {form_slug}")
+                    continue
+                final_value = val
+                print(f"✅ Saved non-file value for {param.slug}: {final_value}")
 
+            # ⚠️ Bypass the value setter to avoid `.name` attribute issues
+            ScriptParameters.objects.create(
+                job=job,
+                parameter=param,
+                _value=json.dumps(final_value)
+            )
+
+        except Exception as e:
+            print(f"💥 Error saving parameter {form_slug}: {e}")
+
+    print(f"🎉 Job {job.id} created successfully with parameters.")
     return job
+
 
 
 def get_master_form(script_version=None, pk=None, parser=None):
@@ -580,14 +622,16 @@ def add_scriptly_script(
                 # TODO: fix 'file' to be global in argparse
                 # ✅ Corrected is_output detection logic:
                 # Positional arguments (no "param") are always treated as INPUTS, not outputs.
-                if not param.get("param"):  # Positional argument → always input!
-                    is_out = False
+                # Determine if parameter is an output
+                if param.get("upload", True) is True:
+                    is_out = False  # It's an input
+                elif param.get("upload", True) is False:
+                    is_out = True  # Explicit output
+                elif param.get("param") is None:
+                    is_out = False  # Positional → assume input
                 else:
-                    # For optional arguments, decide based on 'upload' and 'type'
-                    is_out = (
-                            param.get("upload", None) is False
-                            and param.get("type") == "file"
-                    ) if "upload" in param else not param.get("upload", False)
+                    # Fallback guess: if it's a file and not uploaded, it's probably output
+                    is_out = param.get("type") == "file"
 
                 # ✅ Corrected form_field ("model") assignment logic:
                 if param.get("type") == "file":
@@ -710,12 +754,29 @@ def mkdirs(path):
             raise
 
 
-def get_upload_path(filepath, checksum=None):
-    filename = os.path.split(filepath)[1]
-    if checksum is None:
-        checksum = get_checksum(path=filepath)
+def get_upload_path(file_or_path, checksum=None):
+    # file_or_path can be a path string or file object
+    if hasattr(file_or_path, 'read'):
+        # file-like object, not saved yet — hash its contents
+        file_or_path.seek(0)
+        data = file_or_path.read()
+        checksum = hashlib.sha256(data).hexdigest()
+        file_or_path.seek(0)
+        filename = getattr(file_or_path, 'name', str(uuid.uuid4()))
+        filename = os.path.basename(filename)
+    else:
+        # full path already exists (e.g., during archival)
+        filename = os.path.basename(file_or_path)
+        if checksum is None:
+            with open(file_or_path, 'rb') as f:
+                checksum = hashlib.sha256(f.read()).hexdigest()
+
     return os.path.join(
-        scriptly_settings.SCRIPTLY_FILE_DIR, checksum[:2], checksum[-2:], checksum, filename
+        scriptly_settings.SCRIPTLY_FILE_DIR,
+        checksum[:2],
+        checksum[-2:],
+        checksum,
+        filename
     )
 
 
@@ -837,7 +898,6 @@ def create_job_fileinfo(job):
                 if value is None:
                     continue
 
-                # If it's a file path (string)
                 if isinstance(value, str):
                     if local_storage.exists(value):
                         value_file = local_storage.open(value)
@@ -860,10 +920,6 @@ def create_job_fileinfo(job):
                     new_abs_path = os.path.join(settings.MEDIA_ROOT, new_rel_path)
 
                     shutil.copy(value.file.name, new_abs_path)
-
-                    job.output_file_path = new_rel_path  # Save in model
-                    job.save()
-
                     d["checksum"] = get_checksum(path=new_abs_path)
                     output_files_for_job.append(new_rel_path)
 
@@ -896,6 +952,27 @@ def create_job_fileinfo(job):
                 "Error saving file info for {}:\n{}".format(filepath, traceback.format_exc())
             )
             continue
+
+    # ✅ Unconditional fallback always runs
+    fallback_dir = os.path.join(settings.MEDIA_ROOT, job.get_output_path())
+    print("🔎 Scanning fallback folder:", fallback_dir)
+
+    if os.path.exists(fallback_dir):
+        for root, dirs, files in os.walk(fallback_dir):
+            for filename in files:
+                if filename.endswith((".tar.gz", ".zip")):
+                    continue
+                full_path = os.path.join(root, filename)
+                rel_path = os.path.relpath(full_path, settings.MEDIA_ROOT).replace("\\", "/")
+                print("✅ Found fallback output file:", rel_path)
+                output_files_for_job.append(rel_path)
+
+    print("📦 Final output files for job:", output_files_for_job)
+
+    if output_files_for_job:
+        job.output_files = output_files_for_job
+        job.save()
+        print("✅ Saved job.output_files")
 
 
 
@@ -970,10 +1047,21 @@ def get_grouped_file_previews(files):
 
 
 def get_file_previews(job):
-    from ..models import UserFile
+    output_files = job.output_files or []
+    print("🧪 [DEBUG] job.output_files =", output_files)
 
-    files = UserFile.objects.filter(job=job)
-    return get_grouped_file_previews(files)
+    if not output_files:
+        return {}
+
+    return {
+        "Output": [{
+            "preview_type": "download",
+            "filepath": path,
+            "url": os.path.join(settings.MEDIA_URL, path).replace("\\", "/"),
+            "filename": os.path.basename(path),
+        } for path in output_files]
+    }
+
 
 
 def get_file_previews_by_ids(ids):
